@@ -507,6 +507,259 @@ export const mockDishes: Dish[] = [
   },
 ]
 
+export type DishFilterOption = {
+  label: string
+  value: string
+}
+
+export const cuisineOptions: DishFilterOption[] = [
+  { label: "Tất cả", value: "all" },
+  { label: "Món Việt", value: "Món Việt" },
+  { label: "Món Hàn", value: "Món Hàn" },
+  { label: "Món Nhật", value: "Món Nhật" },
+  { label: "Món Trung", value: "Món Trung" },
+  { label: "Món Thái", value: "Món Thái" },
+  { label: "Fusion", value: "Fusion" },
+]
+
+export const ingredientOptions: DishFilterOption[] = [
+  { label: "Tất cả", value: "all" },
+  { label: "Bò", value: "Bò" },
+  { label: "Gà", value: "Gà" },
+  { label: "Heo", value: "Heo" },
+  { label: "Tôm", value: "Tôm" },
+  { label: "Cua", value: "Cua" },
+  { label: "Cá", value: "Cá" },
+  { label: "Hải sản", value: "Hải sản" },
+  { label: "Chay", value: "Chay" },
+]
+
+export const methodOptions: DishFilterOption[] = [
+  { label: "Tất cả", value: "all" },
+  { label: "Chiên", value: "Chiên" },
+  { label: "Xào", value: "Xào" },
+  { label: "Luộc", value: "Luộc" },
+  { label: "Hấp", value: "Hấp" },
+  { label: "Nướng", value: "Nướng" },
+  { label: "Kho", value: "Kho" },
+  { label: "Hầm", value: "Hầm" },
+  { label: "Trộn", value: "Trộn" },
+]
+
+export const flavorOptions: DishFilterOption[] = [
+  { label: "Tất cả", value: "all" },
+  { label: "Thanh", value: "Thanh" },
+  { label: "Cay", value: "Cay" },
+  { label: "Mặn", value: "Mặn" },
+  { label: "Ngọt", value: "Ngọt" },
+  { label: "Chua", value: "Chua" },
+  { label: "Đậm đà", value: "Đậm đà" },
+  { label: "Béo", value: "Béo" },
+]
+
+export const priceOptions: DishFilterOption[] = [
+  { label: "Tất cả", value: "all" },
+  { label: "Dưới 40k", value: "under_40" },
+  { label: "40k - 60k", value: "40_60" },
+  { label: "Trên 60k", value: "over_60" },
+]
+
+type DishMeta = {
+  cuisine: string
+  mainIngredients: string[]
+  cookMethods: string[]
+  flavorProfiles: string[]
+}
+
+export const dishMetadata: Record<string, DishMeta> = {
+  dish_1: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Đậm đà", "Thanh"],
+  },
+  dish_2: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Thanh", "Ngọt"],
+  },
+  dish_3: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Nướng", "Kho"],
+    flavorProfiles: ["Đậm đà", "Mặn"],
+  },
+  dish_4: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Nướng"],
+    flavorProfiles: ["Đậm đà", "Ngọt"],
+  },
+  dish_5: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Trộn"],
+    flavorProfiles: ["Đậm đà", "Béo"],
+  },
+  dish_6: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Kho"],
+    flavorProfiles: ["Đậm đà", "Ngọt"],
+  },
+  dish_wagyu_pho: {
+    cuisine: "Fusion",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Đậm đà", "Béo"],
+  },
+  dish_golden_chicken_pho: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Thanh", "Ngọt"],
+  },
+  dish_crispy_short_rib: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Nướng", "Chiên"],
+    flavorProfiles: ["Đậm đà", "Mặn"],
+  },
+  dish_salted_egg_rice: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Nướng", "Chiên"],
+    flavorProfiles: ["Béo", "Mặn"],
+  },
+  dish_sweety_pork_rice: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Kho"],
+    flavorProfiles: ["Ngọt", "Đậm đà"],
+  },
+  dish_banh_mi_pate_foie: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Trộn"],
+    flavorProfiles: ["Béo", "Đậm đà"],
+  },
+  dish_banh_mi_grilled_chicken: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Nướng"],
+    flavorProfiles: ["Đậm đà", "Thanh"],
+  },
+  dish_banh_mi_caramel_pork: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Kho"],
+    flavorProfiles: ["Ngọt", "Đậm đà"],
+  },
+  dish_spicy_pho_sate: {
+    cuisine: "Món Thái",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Cay", "Mặn"],
+  },
+  dish_crab_pho: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Cua", "Hải sản"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Thanh", "Ngọt"],
+  },
+  dish_pandan_rice: {
+    cuisine: "Fusion",
+    mainIngredients: ["Tôm", "Hải sản"],
+    cookMethods: ["Hấp", "Xào"],
+    flavorProfiles: ["Thanh", "Đậm đà"],
+  },
+  dish_veggie_banh_mi: {
+    cuisine: "Fusion",
+    mainIngredients: ["Chay"],
+    cookMethods: ["Xào", "Trộn"],
+    flavorProfiles: ["Thanh", "Đậm đà"],
+  },
+  dish_truffle_pho: {
+    cuisine: "Fusion",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Đậm đà", "Béo"],
+  },
+  dish_oxtail_pho: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Đậm đà", "Béo"],
+  },
+  dish_scallop_rice: {
+    cuisine: "Món Nhật",
+    mainIngredients: ["Hải sản"],
+    cookMethods: ["Nướng"],
+    flavorProfiles: ["Béo", "Mặn"],
+  },
+  dish_herbal_chicken_noodles: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Thanh", "Ngọt"],
+  },
+  dish_mushroom_noodles: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Chay"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Thanh"],
+  },
+  dish_sate_chicken_noodles: {
+    cuisine: "Món Thái",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Hầm"],
+    flavorProfiles: ["Cay", "Đậm đà"],
+  },
+  dish_fried_rice_egg: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Tôm"],
+    cookMethods: ["Chiên"],
+    flavorProfiles: ["Mặn", "Béo"],
+  },
+  dish_rice_fish_caramel: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Cá"],
+    cookMethods: ["Kho"],
+    flavorProfiles: ["Mặn", "Đậm đà"],
+  },
+  dish_rice_chicken_crispy: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Chiên", "Nướng"],
+    flavorProfiles: ["Đậm đà", "Béo"],
+  },
+  dish_rice_toasted_garlic: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Heo"],
+    cookMethods: ["Chiên"],
+    flavorProfiles: ["Mặn", "Đậm đà"],
+  },
+  dish_banh_mi_fish_cake: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Cá", "Hải sản"],
+    cookMethods: ["Chiên"],
+    flavorProfiles: ["Mặn", "Đậm đà"],
+  },
+  dish_banh_mi_quail_egg: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Gà"],
+    cookMethods: ["Chiên"],
+    flavorProfiles: ["Béo", "Ngọt"],
+  },
+  dish_banh_mi_spicy_beef: {
+    cuisine: "Món Việt",
+    mainIngredients: ["Bò"],
+    cookMethods: ["Nướng"],
+    flavorProfiles: ["Cay", "Đậm đà"],
+  },
+}
+
 export const mockOrders: Order[] = [
   {
     id: "order_1",

@@ -6,10 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useCart } from "@/hooks/use-cart"
-import { mockDishes, mockRestaurants, mockReviews } from "@/lib/mock-data"
-import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone } from "lucide-react"
+import {
+  mockDishes,
+  mockRestaurants,
+  mockReviews,
+  cuisineOptions,
+  ingredientOptions,
+  methodOptions,
+  flavorOptions,
+  dishMetadata,
+  type DishFilterOption,
+} from "@/lib/mock-data"
+import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Pagination,
@@ -20,17 +36,124 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 import type { Dish, Review } from "@/types"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+
+const DEFAULT_DISH_META = {
+  cuisine: "Món Việt",
+  mainIngredients: [] as string[],
+  cookMethods: [] as string[],
+  flavorProfiles: [] as string[],
+}
+
+type FilterSelectProps = {
+  label: string
+  value: string
+  options: DishFilterOption[]
+  onValueChange: (value: string) => void
+}
+
+const FilterSelect = ({ label, value, options, onValueChange }: FilterSelectProps) => {
+  const selectedOptionLabel = options.find((option) => option.value === value)?.label
+
+  return (
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger className="w-full text-left h-auto py-6"> {/* Thay đổi ở đây */}
+        <div className="flex flex-col items-start">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-sm font-medium text-foreground">{selectedOptionLabel}</span>
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+type FloatingLabelInputProps = React.InputHTMLAttributes<HTMLInputElement> & {
+  label: string
+}
+
+const FloatingLabelInput = ({ label, id, className, ...props }: FloatingLabelInputProps) => {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        placeholder=" " // Placeholder phải có một khoảng trắng để hoạt động
+        className={cn(
+          "peer h-13 pt-6 text-foreground", // Thêm pt-6 để chừa chỗ cho label
+          className
+        )}
+        {...props}
+      />
+      <label
+        htmlFor={id}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 ease-in-out
+                   peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base
+                   peer-focus:top-4 peer-focus:text-xs
+                   peer-[:not(:placeholder-shown)]:top-4 peer-[:not(:placeholder-shown)]:text-xs"
+      >
+        {label}
+      </label>
+    </div>
+  )
+}
+
+type PriceRangeFilterProps = {
+  minPrice: string
+  maxPrice: string
+  onMinPriceChange: (value: string) => void
+  onMaxPriceChange: (value: string) => void
+}
+
+const PriceRangeFilter = ({ minPrice, maxPrice, onMinPriceChange, onMaxPriceChange }: PriceRangeFilterProps) => {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-sm font-medium text-foreground whitespace-nowrap">Mức giá</span>
+      <div className="flex items-center gap-2 flex-1">
+        <FloatingLabelInput
+          id="min-price"
+          type="number"
+          label="Mức giá từ"
+          value={minPrice}
+          onChange={(e) => onMinPriceChange(e.target.value)}
+        />
+        <span className="text-muted-foreground">-</span>
+        <FloatingLabelInput
+          id="max-price"
+          type="number"
+          label="Mức giá đến"
+          value={maxPrice}
+          onChange={(e) => onMaxPriceChange(e.target.value)}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function FoodPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [priceFilter, setPriceFilter] = useState("all")
+  const [selectedCuisine, setSelectedCuisine] = useState("all")
+  const [selectedIngredient, setSelectedIngredient] = useState("all")
+  const [selectedMethod, setSelectedMethod] = useState("all")
+  const [selectedFlavor, setSelectedFlavor] = useState("all")
+  const [minPrice, setMinPrice] = useState("")
+  const [maxPrice, setMaxPrice] = useState("")
   const [selectedDishId, setSelectedDishId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const { addToCart } = useCart()
   const { toast } = useToast()
 
-  const categories = ["all", "Noodles", "Rice", "Sandwiches"]
   const ITEMS_PER_PAGE = 9
 
   const generatedReviews = useMemo<Review[]>(() => {
@@ -94,21 +217,42 @@ export default function FoodPage() {
 
   const filteredDishes = useMemo(() => {
     return mockDishes.filter((dish) => {
+      const meta = dishMetadata[dish.id] ?? DEFAULT_DISH_META
       const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCategory = selectedCategory === "all" || dish.category === selectedCategory
-      const matchesPrice =
-        priceFilter === "all" ||
-        (priceFilter === "low" && dish.price < 40000) ||
-        (priceFilter === "medium" && dish.price >= 40000 && dish.price < 60000) ||
-        (priceFilter === "high" && dish.price >= 60000)
+      const matchesCuisine = selectedCuisine === "all" || meta.cuisine === selectedCuisine
+      const matchesIngredient =
+        selectedIngredient === "all" || meta.mainIngredients.includes(selectedIngredient)
+      const matchesMethod = selectedMethod === "all" || meta.cookMethods.includes(selectedMethod)
+      const matchesFlavor = selectedFlavor === "all" || meta.flavorProfiles.includes(selectedFlavor)
+      
+      // Price range filter logic
+      const min = minPrice ? parseFloat(minPrice) : null
+      const max = maxPrice ? parseFloat(maxPrice) : null
+      
+      let matchesPrice = true
+      if (min !== null && max !== null) {
+        matchesPrice = dish.price >= min && dish.price <= max
+      } else if (min !== null) {
+        matchesPrice = dish.price >= min
+      } else if (max !== null) {
+        matchesPrice = dish.price <= max
+      }
 
-      return matchesSearch && matchesCategory && matchesPrice && dish.isAvailable
+      return (
+        matchesSearch &&
+        matchesCuisine &&
+        matchesIngredient &&
+        matchesMethod &&
+        matchesFlavor &&
+        matchesPrice &&
+        dish.isAvailable
+      )
     })
-  }, [priceFilter, searchQuery, selectedCategory])
+  }, [searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCategory, priceFilter])
+  }, [searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
 
   useEffect(() => {
     if (!filteredDishes.length) {
@@ -167,6 +311,16 @@ export default function FoodPage() {
     })
   }
 
+  const handleResetFilters = () => {
+    setSearchQuery("")
+    setSelectedCuisine("all")
+    setSelectedIngredient("all")
+    setSelectedMethod("all")
+    setSelectedFlavor("all")
+    setMinPrice("")
+    setMaxPrice("")
+  }
+
   const getRestaurant = (restaurantId: string) => {
     return mockRestaurants.find((r) => r.id === restaurantId)
   }
@@ -179,49 +333,77 @@ export default function FoodPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Khám phá món ăn</h1>
-        <p className="mt-2 text-muted-foreground">Tìm kiếm và đặt món ăn yêu thích của bạn</p>
+      <div className="mb-8 space-y-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <h1 className="text-3xl font-bold text-foreground">Khám phá món ăn</h1>
+          <div className="relative w-full md:w-[320px] lg:w-[380px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm món ăn..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        <p className="text-muted-foreground">Tìm kiếm và đặt món ăn yêu thích của bạn</p>
       </div>
 
       {/* Filters */}
-      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Tìm kiếm món ăn..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      <div className="mb-6">
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto] items-end">
+    {/* 4 select filters */}
+    <FilterSelect
+      label="Ẩm thực"
+      value={selectedCuisine}
+      options={cuisineOptions}
+      onValueChange={setSelectedCuisine}
+    />
+    <FilterSelect
+      label="Nguyên liệu chính"
+      value={selectedIngredient}
+      options={ingredientOptions}
+      onValueChange={setSelectedIngredient}
+    />
+    <FilterSelect
+      label="Phương pháp chế biến"
+      value={selectedMethod}
+      options={methodOptions}
+      onValueChange={setSelectedMethod}
+    />
+    <FilterSelect
+      label="Hương vị"
+      value={selectedFlavor}
+      options={flavorOptions}
+      onValueChange={setSelectedFlavor}
+    />
 
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue placeholder="Danh mục" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả</SelectItem>
-            {categories.slice(1).map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {cat}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    {/* Price filter - chiếm 2 phần */}
+    <div className="xl:col-span-1"> {/* Cập nhật col-span để phù hợp với grid mới */}
+      <PriceRangeFilter
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        onMinPriceChange={setMinPrice}
+        onMaxPriceChange={setMaxPrice}
+      />
+    </div>
 
-        <Select value={priceFilter} onValueChange={setPriceFilter}>
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue placeholder="Giá" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value="low">Dưới 40k</SelectItem>
-            <SelectItem value="medium">40k - 60k</SelectItem>
-            <SelectItem value="high">Trên 60k</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+    {/* Reset button with Icon and Tooltip */}
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="outline" size="icon" onClick={handleResetFilters} className="h-13 w-13">
+            <RotateCcw className="h-4 w-4" />
+            <span className="sr-only">Khôi phục bộ lọc</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Khôi phục bộ lọc</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  </div>
+</div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Dishes Grid */}
