@@ -17,7 +17,7 @@ import { useCart } from "@/hooks/use-cart"
 import {
   mockDishes,
   mockRestaurants,
-  mockReviews,
+  allMockReviews,
   cuisineOptions,
   ingredientOptions,
   methodOptions,
@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
+// --- (Các component con giữ nguyên, không thay đổi) ---
 const DEFAULT_DISH_META = {
   cuisine: "Món Việt",
   mainIngredients: [] as string[],
@@ -63,7 +64,7 @@ const FilterSelect = ({ label, value, options, onValueChange }: FilterSelectProp
 
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="w-full text-left h-auto py-6"> {/* Thay đổi ở đây */}
+      <SelectTrigger className="w-full text-left h-auto py-6">
         <div className="flex flex-col items-start">
           <span className="text-xs text-muted-foreground">{label}</span>
           <span className="text-sm font-medium text-foreground">{selectedOptionLabel}</span>
@@ -89,19 +90,13 @@ const FloatingLabelInput = ({ label, id, className, ...props }: FloatingLabelInp
     <div className="relative">
       <Input
         id={id}
-        placeholder=" " // Placeholder phải có một khoảng trắng để hoạt động
-        className={cn(
-          "peer h-13 pt-6 text-foreground", // Thêm pt-6 để chừa chỗ cho label
-          className
-        )}
+        placeholder=" "
+        className={cn("peer h-13 pt-6 text-foreground", className)}
         {...props}
       />
       <label
         htmlFor={id}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 ease-in-out
-                   peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base
-                   peer-focus:top-4 peer-focus:text-xs
-                   peer-[:not(:placeholder-shown)]:top-4 peer-[:not(:placeholder-shown)]:text-xs"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 ease-in-out peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-focus:top-4 peer-focus:text-xs peer-[:not(:placeholder-shown)]:top-4 peer-[:not(:placeholder-shown)]:text-xs"
       >
         {label}
       </label>
@@ -141,6 +136,7 @@ const PriceRangeFilter = ({ minPrice, maxPrice, onMinPriceChange, onMaxPriceChan
   )
 }
 
+// --- Component chính ---
 export default function FoodPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCuisine, setSelectedCuisine] = useState("all")
@@ -153,67 +149,14 @@ export default function FoodPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const { addToCart } = useCart()
   const { toast } = useToast()
+  
+  const ITEMS_PER_PAGE = 6
+  
+  // === THAY ĐỔI 1: STATE MỚI CHO BỘ LỌC VÀ "XEM THÊM" ===
+  const [selectedRatingFilter, setSelectedRatingFilter] = useState<number>(0) // 0 là "Tất cả"
+  const REVIEWS_PER_PAGE = 3 // Số review hiển thị mỗi lần
+  const [visibleReviewCount, setVisibleReviewCount] = useState(REVIEWS_PER_PAGE)
 
-  const ITEMS_PER_PAGE = 9
-
-  const generatedReviews = useMemo<Review[]>(() => {
-    if (!mockDishes.length) return []
-
-    const reviewers = [
-      { id: "user_quynh", name: "Lê Mỹ Quỳnh" },
-      { id: "user_thinh", name: "Phạm Quốc Thịnh" },
-      { id: "user_anhthu", name: "Ngô Ánh Thư" },
-      { id: "user_danh", name: "Trần Hữu Danh" },
-      { id: "user_tuananh", name: "Vũ Tuấn Anh" },
-      { id: "user_minhanh", name: "Bùi Minh Ánh" },
-      { id: "user_linh", name: "Đặng Diễm Linh" },
-      { id: "user_vy", name: "Phạm Gia Vy" },
-    ]
-
-    const comments = [
-      "Hương vị cực kỳ ấn tượng, nêm nếm vừa miệng và phần ăn rất đầy đặn.",
-      "Giao hàng nhanh, món ăn tới nơi vẫn còn nóng hổi và thơm phức.",
-      "Giá hơi cao nhưng chất lượng xứng đáng, sẽ đặt lại nhiều lần nữa.",
-      "Rau ăn kèm tươi, nước sốt đậm đà, tổng thể rất hài lòng.",
-      "Phần ăn trình bày bắt mắt, topping phong phú khiến ăn không bị ngán.",
-      "Gia vị hài hòa, không quá mặn cũng không quá nhạt, dễ ăn cho cả nhà.",
-      "Sốt đặc trưng rất ngon, nhưng mình mong thêm chút rau sống nữa là hoàn hảo.",
-      "Ăn tới miếng cuối cùng vẫn thấy ngon, sẽ giới thiệu cho bạn bè thử.",
-    ]
-
-    const baseDate = Date.parse("2024-10-20T12:00:00Z")
-
-    const entries = mockDishes.flatMap((dish, dishIndex) => {
-      const reviewCount = 3
-      return Array.from({ length: reviewCount }, (_, reviewIndex) => {
-        const reviewer = reviewers[(dishIndex + reviewIndex) % reviewers.length]
-        const comment = comments[(dishIndex * 2 + reviewIndex) % comments.length]
-        const ratingBase = dish.rating
-        const adjustment = reviewIndex === 0 ? 0.2 : reviewIndex === 1 ? -0.1 : 0
-        const rating = Math.min(5, Math.max(3.5, Math.round((ratingBase + adjustment) * 10) / 10))
-        const createdAt = new Date(baseDate - (dishIndex * 3 + reviewIndex) * 86400000).toISOString()
-
-        return {
-          id: `gen_review_${dish.id}_${reviewIndex}`,
-          userId: reviewer.id,
-          userName: reviewer.name,
-          dishId: dish.id,
-          orderId: `gen_order_${dish.id}_${reviewIndex}`,
-          rating,
-          comment,
-          createdAt,
-        }
-      })
-    })
-
-    return entries
-  }, [])
-
-  const reviews = useMemo(() => {
-    const catalogIds = new Set(mockDishes.map((dish) => dish.id))
-    const existingRelevant = mockReviews.filter((review) => catalogIds.has(review.dishId))
-    return [...existingRelevant, ...generatedReviews]
-  }, [generatedReviews])
 
   const filteredDishes = useMemo(() => {
     return mockDishes.filter((dish) => {
@@ -224,11 +167,10 @@ export default function FoodPage() {
         selectedIngredient === "all" || meta.mainIngredients.includes(selectedIngredient)
       const matchesMethod = selectedMethod === "all" || meta.cookMethods.includes(selectedMethod)
       const matchesFlavor = selectedFlavor === "all" || meta.flavorProfiles.includes(selectedFlavor)
-      
-      // Price range filter logic
+
       const min = minPrice ? parseFloat(minPrice) : null
       const max = maxPrice ? parseFloat(maxPrice) : null
-      
+
       let matchesPrice = true
       if (min !== null && max !== null) {
         matchesPrice = dish.price >= min && dish.price <= max
@@ -261,10 +203,16 @@ export default function FoodPage() {
     }
 
     const isSelectedVisible = filteredDishes.some((dish) => dish.id === selectedDishId)
-    if (!isSelectedVisible) {
+    if (!isSelectedVisible || selectedDishId === null) {
       setSelectedDishId(filteredDishes[0].id)
     }
   }, [filteredDishes, selectedDishId])
+
+  // === THAY ĐỔI 2: RESET BỘ LỌC REVIEW KHI CHỌN MÓN ĂN MỚI ===
+  useEffect(() => {
+    setSelectedRatingFilter(0)
+    setVisibleReviewCount(REVIEWS_PER_PAGE)
+  }, [selectedDishId])
 
   const totalPages = filteredDishes.length ? Math.ceil(filteredDishes.length / ITEMS_PER_PAGE) : 1
 
@@ -283,25 +231,39 @@ export default function FoodPage() {
   useEffect(() => {
     if (!paginatedDishes.length) return
     if (!selectedDishId || !paginatedDishes.some((dish) => dish.id === selectedDishId)) {
-      setSelectedDishId(paginatedDishes[0].id)
+      setSelectedDishId(paginatedDishes[0]?.id)
     }
   }, [paginatedDishes, selectedDishId])
 
   const selectedDish = useMemo(
-    () => filteredDishes.find((dish) => dish.id === selectedDishId) ?? filteredDishes[0],
+    () => filteredDishes.find((dish) => dish.id === selectedDishId),
     [filteredDishes, selectedDishId],
   )
 
-  const selectedDishReviews = useMemo(() => {
+  // === THAY ĐỔI 3: LOGIC LỌC VÀ PHÂN TRANG CHO REVIEW ===
+  const filteredReviews = useMemo(() => {
     if (!selectedDish) return []
-    return reviews.filter((review) => review.dishId === selectedDish.id)
-  }, [reviews, selectedDish])
+    const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
+    
+    if (selectedRatingFilter === 0) {
+      return allReviewsForDish // Trả về tất cả nếu không lọc
+    }
+    
+    // Lọc theo số sao chính xác
+    return allReviewsForDish.filter(review => Math.floor(review.rating) === selectedRatingFilter)
+  }, [selectedDish, selectedRatingFilter])
 
+  const visibleReviews = useMemo(() => {
+    return filteredReviews.slice(0, visibleReviewCount)
+  }, [filteredReviews, visibleReviewCount])
+  
   const overallRating = useMemo(() => {
-    if (!selectedDishReviews.length) return null
-    const total = selectedDishReviews.reduce((sum, review) => sum + review.rating, 0)
-    return (total / selectedDishReviews.length).toFixed(1)
-  }, [selectedDishReviews])
+    if (!selectedDish) return null
+    const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
+    if (!allReviewsForDish.length) return null
+    const total = allReviewsForDish.reduce((sum, review) => sum + review.rating, 0)
+    return (total / allReviewsForDish.length).toFixed(1)
+  }, [selectedDish])
 
   const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
@@ -325,11 +287,6 @@ export default function FoodPage() {
     return mockRestaurants.find((r) => r.id === restaurantId)
   }
 
-  const getSpicyIcon = (level: string) => {
-    if (level === "none") return null
-    return <Flame className="h-3 w-3 text-orange-500" />
-  }
-
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -351,67 +308,62 @@ export default function FoodPage() {
 
       {/* Filters */}
       <div className="mb-6">
-  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto] items-end">
-    {/* 4 select filters */}
-    <FilterSelect
-      label="Ẩm thực"
-      value={selectedCuisine}
-      options={cuisineOptions}
-      onValueChange={setSelectedCuisine}
-    />
-    <FilterSelect
-      label="Nguyên liệu chính"
-      value={selectedIngredient}
-      options={ingredientOptions}
-      onValueChange={setSelectedIngredient}
-    />
-    <FilterSelect
-      label="Phương pháp chế biến"
-      value={selectedMethod}
-      options={methodOptions}
-      onValueChange={setSelectedMethod}
-    />
-    <FilterSelect
-      label="Hương vị"
-      value={selectedFlavor}
-      options={flavorOptions}
-      onValueChange={setSelectedFlavor}
-    />
-
-    {/* Price filter - chiếm 2 phần */}
-    <div className="xl:col-span-1"> {/* Cập nhật col-span để phù hợp với grid mới */}
-      <PriceRangeFilter
-        minPrice={minPrice}
-        maxPrice={maxPrice}
-        onMinPriceChange={setMinPrice}
-        onMaxPriceChange={setMaxPrice}
-      />
-    </div>
-
-    {/* Reset button with Icon and Tooltip */}
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="outline" size="icon" onClick={handleResetFilters} className="h-13 w-13">
-            <RotateCcw className="h-4 w-4" />
-            <span className="sr-only">Khôi phục bộ lọc</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Khôi phục bộ lọc</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  </div>
-</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto] items-end">
+          <FilterSelect
+            label="Ẩm thực"
+            value={selectedCuisine}
+            options={cuisineOptions}
+            onValueChange={setSelectedCuisine}
+          />
+          <FilterSelect
+            label="Nguyên liệu chính"
+            value={selectedIngredient}
+            options={ingredientOptions}
+            onValueChange={setSelectedIngredient}
+          />
+          <FilterSelect
+            label="Phương pháp chế biến"
+            value={selectedMethod}
+            options={methodOptions}
+            onValueChange={setSelectedMethod}
+          />
+          <FilterSelect
+            label="Hương vị"
+            value={selectedFlavor}
+            options={flavorOptions}
+            onValueChange={setSelectedFlavor}
+          />
+          <div className="xl:col-span-1">
+            <PriceRangeFilter
+              minPrice={minPrice}
+              maxPrice={maxPrice}
+              onMinPriceChange={setMinPrice}
+              onMaxPriceChange={setMaxPrice}
+            />
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={handleResetFilters} className="h-13 w-13">
+                  <RotateCcw className="h-4 w-4" />
+                  <span className="sr-only">Khôi phục bộ lọc</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Khôi phục bộ lọc</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Dishes Grid */}
         <div className="flex flex-col gap-6">
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {paginatedDishes.map((dish) => {
-              const isSelected = selectedDish?.id === dish.id
               const restaurant = getRestaurant(dish.restaurantId)
+              const isSelected = selectedDish?.id === dish.id
               return (
                 <Card
                   key={dish.id}
@@ -424,8 +376,10 @@ export default function FoodPage() {
                       setSelectedDishId(dish.id)
                     }
                   }}
-                  className={`flex h-full flex-col gap-0 overflow-hidden border-2 py-0 transition-all focus:outline-none ${
-                    isSelected ? "border-primary shadow-lg" : "border-border/50 hover:border-primary/70 hover:shadow-lg"
+                  className={`flex h-full flex-col gap-0 overflow-hidden border-2 py-0 transition-all duration-200 focus:outline-none ${
+                    isSelected
+                      ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xl"
+                      : "border-border/50 hover:border-primary/70 hover:shadow-lg hover:-translate-y-1"
                   }`}
                 >
                   <CardContent className="flex flex-1 flex-col p-0">
@@ -441,21 +395,20 @@ export default function FoodPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <h3 className="line-clamp-1 text-lg font-semibold text-card-foreground">{dish.name}</h3>
-                          {restaurant && <p className="text-xs text-muted-foreground">{restaurant.name}</p>}
+                          {restaurant && <p className="text-xs text-muted-foreground line-clamp-1">{restaurant.name}</p>}
                         </div>
-                        <div className="flex items-center gap-1 text-sm text-amber-500">
-                          <Star className="h-4 w-4 fill-current" />
+                        <div className="flex items-center gap-1 text-sm text-amber-500 flex-shrink-0">
                           <span className="font-semibold">{dish.rating}</span>
-                          <span className="text-xs text-muted-foreground">({dish.totalReviews})</span>
+                          <Star className="h-4 w-4 fill-current" />
                         </div>
                       </div>
                       <p className="min-h-[2.5rem] text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
-                      <div className="mt-auto flex flex-wrap gap-2">
-                        {dish.tags.slice(0, 4).map((tag) => (
+                      <div className="mt-auto flex w-full flex-nowrap gap-2 overflow-hidden">
+                        {dish.tags.map((tag) => (
                           <Badge
                             key={tag}
                             variant="outline"
-                            className="rounded-full border-primary/20 bg-primary/5 px-2 text-xs font-medium text-primary"
+                            className="rounded-full border-primary/20 bg-primary/5 px-2 text-xs font-medium text-primary whitespace-nowrap"
                           >
                             {tag}
                           </Badge>
@@ -468,7 +421,7 @@ export default function FoodPage() {
                     <Button
                       size="sm"
                       className="min-w-[110px] rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_16px_rgba(34,197,94,0.2)] hover:bg-primary/90"
-                      onClick={() => handleAddToCart(dish)}
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(dish); }}
                     >
                       <Plus className="mr-1 h-4 w-4" />
                       Thêm
@@ -526,86 +479,127 @@ export default function FoodPage() {
           )}
         </div>
 
-        {/* Reviews Panel */}
-        <aside className="h-fit rounded-xl border border-border bg-card shadow-sm">
-          <div className="space-y-4 border-b border-border p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Đánh giá</h2>
-              {selectedDish && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{selectedDish.totalReviews} lượt</span>
-                  
+        {/* === THAY ĐỔI 4: CẬP NHẬT TOÀN BỘ CỘT BÊN PHẢI === */}
+        <div className="flex flex-col gap-8">
+          {selectedDish ? (
+            <>
+              {/* Card 1: Thông tin món ăn & nhà hàng */}
+              <aside className="h-fit rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="p-4">
+                  <div className="mb-4">
+                    <h2 className="text-xl font-bold text-foreground mb-1">{selectedDish.name}</h2>
+                    <p className="text-sm text-muted-foreground mb-3">{selectedDish.description}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDish.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="font-normal">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  {(() => {
+                    const restaurant = getRestaurant(selectedDish.restaurantId)
+                    if (!restaurant) return null
+                    return (
+                      <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                        <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                          <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                          <span>{restaurant.address}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-4 w-4 flex-shrink-0 text-primary" />
+                          <span>{restaurant.phone}</span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
-              )}
+              </aside>
+
+              {/* Card 2: Đánh giá với bộ lọc và nút "Xem thêm" */}
+              <aside className="h-fit rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+  {/* Header mới với tiêu đề và Dropdown lọc */}
+  <div className="px-4 py-3 flex justify-between items-center border-b border-border">
+    <h3 className="text-lg font-semibold">
+      Đánh giá
+      {selectedDish && (
+        <span className="ml-2 text-sm font-normal text-muted-foreground">
+          ({allMockReviews.filter(r => r.dishId === selectedDish.id).length} lượt)
+        </span>
+      )}
+    </h3>
+
+    {/* Dropdown Menu Lọc Sao */}
+    <Select
+      value={selectedRatingFilter.toString()}
+      onValueChange={(value) => {
+        setSelectedRatingFilter(Number(value))
+        setVisibleReviewCount(REVIEWS_PER_PAGE) // Reset khi lọc
+      }}
+    >
+      <SelectTrigger className="w-auto h-9">
+        <SelectValue placeholder="Lọc theo sao" />
+      </SelectTrigger>
+      <SelectContent>
+        {[0, 5, 4, 3, 2, 1].map((rating) => (
+          <SelectItem key={rating} value={rating.toString()}>
+            {rating === 0 ? "Tất cả" : (
+              <span className="flex items-center gap-1.5">
+                {rating} <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+              </span>
+            )}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+
+  {/* Phần danh sách review và nút "Xem thêm" (giữ nguyên) */}
+  <div className="max-h-[450px] overflow-y-auto p-4">
+    <div className="flex flex-col gap-3">
+      {visibleReviews.length > 0 ? (
+        visibleReviews.map((review) => (
+          <div key={review.id} className="rounded-lg border border-border bg-muted/30 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="font-medium text-card-foreground">{review.userName}</p>
+              <div className="flex items-center gap-1 text-sm font-semibold text-amber-500">
+                <Star className="h-4 w-4 fill-current" />
+                <span>{review.rating.toFixed(1)}</span>
+              </div>
             </div>
-            {selectedDish && (
-              <div className="rounded-lg bg-muted/15 p-3 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
-                {selectedDish.description}
-              </div>
-            )}
-            {overallRating && (
-                <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-                  Đánh giá trung bình: 
-                  <span className="flex items-center gap-1 font-semibold text-foreground">
-                    {overallRating}
-                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                    
-                  </span>
-                </p>
-              )}
-            {selectedDish && (() => {
-              const restaurant = getRestaurant(selectedDish.restaurantId)
-              if (!restaurant) return null
-              return (
-                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">{restaurant.name}</p>
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <MapPin className="mt-0.5 h-4 w-4 text-primary" />
-                      <span>{restaurant.address}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Phone className="h-4 w-4 text-primary" />
-                      <span>{restaurant.phone}</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
+            <p className="text-sm text-muted-foreground">{review.comment}</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(review.createdAt))}
+            </p>
           </div>
-
-          <div className="flex max-h-[520px] flex-col gap-3 overflow-y-auto p-4">
-            {selectedDishReviews.length === 0 && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                <MessageCircle className="mb-2 h-5 w-5" />
-                Chưa có đánh giá nào cho món ăn này.
-              </div>
-            )}
-
-            {selectedDishReviews.map((review) => (
-              <div key={review.id} className="rounded-lg border border-border bg-muted/30 p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="font-medium text-card-foreground">{review.userName}</p>
-                  <div className="flex items-center gap-1 text-sm text-amber-500">
-                    <Star className="h-4 w-4 fill-current" />
-                    <span>{review.rating.toFixed(1)}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{review.comment}</p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  {new Intl.DateTimeFormat("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(review.createdAt))}
-                </p>
-              </div>
-            ))}
-          </div>
-        </aside>
+        ))
+      ) : (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          Không có đánh giá nào phù hợp.
+        </div>
+      )}
+    </div>
+    
+    {visibleReviewCount < filteredReviews.length && (
+       <div className="mt-4 text-center">
+         <Button 
+           variant="ghost" 
+           onClick={() => setVisibleReviewCount(prev => prev + REVIEWS_PER_PAGE)}
+         >
+           Xem thêm {Math.min(REVIEWS_PER_PAGE, filteredReviews.length - visibleReviewCount)} đánh giá
+         </Button>
+       </div>
+    )}
+  </div>
+</aside>
+            </>
+          ) : (
+            <div className="h-fit rounded-xl border border-border bg-card shadow-sm p-8 text-center text-muted-foreground">
+              Chọn một món ăn để xem chi tiết và đánh giá.
+            </div>
+          )}
+        </div>
       </div>
 
       {filteredDishes.length === 0 && (

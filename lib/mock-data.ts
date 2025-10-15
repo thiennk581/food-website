@@ -872,3 +872,60 @@ export const mockRevenueData: RevenueData[] = [
   { date: "2024-10-06", revenue: 6100000, orders: 78 },
   { date: "2024-10-07", revenue: 5800000, orders: 72 },
 ]
+
+const generateDynamicReviews = (dishes: Dish[]): Review[] => {
+  if (!dishes.length) return []
+
+  const reviewers = [
+    { id: "user_quynh", name: "Lê Mỹ Quỳnh" },
+    { id: "user_thinh", name: "Phạm Quốc Thịnh" },
+    { id: "user_anhthu", name: "Ngô Ánh Thư" },
+    { id: "user_danh", name: "Trần Hữu Danh" },
+    { id: "user_tuananh", name: "Vũ Tuấn Anh" },
+    { id: "user_minhanh", name: "Bùi Minh Ánh" },
+    { id: "user_linh", name: "Đặng Diễm Linh" },
+    { id: "user_vy", name: "Phạm Gia Vy" },
+  ]
+
+  const comments = [
+    "Hương vị cực kỳ ấn tượng, nêm nếm vừa miệng và phần ăn rất đầy đặn.",
+    "Giao hàng nhanh, món ăn tới nơi vẫn còn nóng hổi và thơm phức.",
+    "Giá hơi cao nhưng chất lượng xứng đáng, sẽ đặt lại nhiều lần nữa.",
+    "Rau ăn kèm tươi, nước sốt đậm đà, tổng thể rất hài lòng.",
+    "Phần ăn trình bày bắt mắt, topping phong phú khiến ăn không bị ngán.",
+    "Gia vị hài hòa, không quá mặn cũng không quá nhạt, dễ ăn cho cả nhà.",
+    "Sốt đặc trưng rất ngon, nhưng mình mong thêm chút rau sống nữa là hoàn hảo.",
+    "Ăn tới miếng cuối cùng vẫn thấy ngon, sẽ giới thiệu cho bạn bè thử.",
+  ]
+
+  const baseDate = Date.parse("2024-10-20T12:00:00Z")
+
+  return dishes.flatMap((dish, dishIndex) => {
+    const reviewCount = 3 // Tạo 3 review cho mỗi món
+    return Array.from({ length: reviewCount }, (_, reviewIndex) => {
+      const reviewer = reviewers[(dishIndex + reviewIndex) % reviewers.length]
+      const comment = comments[(dishIndex * 2 + reviewIndex) % comments.length]
+      const ratingBase = dish.rating
+      const adjustment = reviewIndex === 0 ? 0.2 : reviewIndex === 1 ? -0.1 : 0
+      const rating = Math.min(5, Math.max(3.5, Math.round((ratingBase + adjustment) * 10) / 10))
+      const createdAt = new Date(baseDate - (dishIndex * 3 + reviewIndex) * 86400000).toISOString()
+
+      return {
+        id: `gen_review_${dish.id}_${reviewIndex}`,
+        userId: reviewer.id,
+        userName: reviewer.name,
+        dishId: dish.id,
+        orderId: `gen_order_${dish.id}_${reviewIndex}`,
+        rating,
+        comment,
+        createdAt,
+      }
+    })
+  })
+}
+
+// Gọi hàm để tạo review
+const generatedReviews = generateDynamicReviews(mockDishes)
+
+// Tạo một mảng tổng hợp chứa cả review gốc và review vừa tạo
+export const allMockReviews: Review[] = [...mockReviews, ...generatedReviews]
