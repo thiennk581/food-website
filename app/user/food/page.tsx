@@ -4,35 +4,111 @@ import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useCart } from "@/hooks/use-cart"
 import { mockDishes, mockRestaurants, mockReviews } from "@/lib/mock-data"
 import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import type { Dish, Review } from "@/types"
 
 export default function FoodPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [priceFilter, setPriceFilter] = useState("all")
   const [selectedDishId, setSelectedDishId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const { addToCart } = useCart()
   const { toast } = useToast()
 
   const categories = ["all", "Noodles", "Rice", "Sandwiches"]
+  const ITEMS_PER_PAGE = 9
 
-  const filteredDishes = mockDishes.filter((dish) => {
-    const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || dish.category === selectedCategory
-    const matchesPrice =
-      priceFilter === "all" ||
-      (priceFilter === "low" && dish.price < 40000) ||
-      (priceFilter === "medium" && dish.price >= 40000 && dish.price < 60000) ||
-      (priceFilter === "high" && dish.price >= 60000)
+  const generatedReviews = useMemo<Review[]>(() => {
+    if (!mockDishes.length) return []
 
-    return matchesSearch && matchesCategory && matchesPrice && dish.isAvailable
-  })
+    const reviewers = [
+      { id: "user_quynh", name: "Lê Mỹ Quỳnh" },
+      { id: "user_thinh", name: "Phạm Quốc Thịnh" },
+      { id: "user_anhthu", name: "Ngô Ánh Thư" },
+      { id: "user_danh", name: "Trần Hữu Danh" },
+      { id: "user_tuananh", name: "Vũ Tuấn Anh" },
+      { id: "user_minhanh", name: "Bùi Minh Ánh" },
+      { id: "user_linh", name: "Đặng Diễm Linh" },
+      { id: "user_vy", name: "Phạm Gia Vy" },
+    ]
+
+    const comments = [
+      "Hương vị cực kỳ ấn tượng, nêm nếm vừa miệng và phần ăn rất đầy đặn.",
+      "Giao hàng nhanh, món ăn tới nơi vẫn còn nóng hổi và thơm phức.",
+      "Giá hơi cao nhưng chất lượng xứng đáng, sẽ đặt lại nhiều lần nữa.",
+      "Rau ăn kèm tươi, nước sốt đậm đà, tổng thể rất hài lòng.",
+      "Phần ăn trình bày bắt mắt, topping phong phú khiến ăn không bị ngán.",
+      "Gia vị hài hòa, không quá mặn cũng không quá nhạt, dễ ăn cho cả nhà.",
+      "Sốt đặc trưng rất ngon, nhưng mình mong thêm chút rau sống nữa là hoàn hảo.",
+      "Ăn tới miếng cuối cùng vẫn thấy ngon, sẽ giới thiệu cho bạn bè thử.",
+    ]
+
+    const baseDate = Date.parse("2024-10-20T12:00:00Z")
+
+    const entries = mockDishes.flatMap((dish, dishIndex) => {
+      const reviewCount = 3
+      return Array.from({ length: reviewCount }, (_, reviewIndex) => {
+        const reviewer = reviewers[(dishIndex + reviewIndex) % reviewers.length]
+        const comment = comments[(dishIndex * 2 + reviewIndex) % comments.length]
+        const ratingBase = dish.rating
+        const adjustment = reviewIndex === 0 ? 0.2 : reviewIndex === 1 ? -0.1 : 0
+        const rating = Math.min(5, Math.max(3.5, Math.round((ratingBase + adjustment) * 10) / 10))
+        const createdAt = new Date(baseDate - (dishIndex * 3 + reviewIndex) * 86400000).toISOString()
+
+        return {
+          id: `gen_review_${dish.id}_${reviewIndex}`,
+          userId: reviewer.id,
+          userName: reviewer.name,
+          dishId: dish.id,
+          orderId: `gen_order_${dish.id}_${reviewIndex}`,
+          rating,
+          comment,
+          createdAt,
+        }
+      })
+    })
+
+    return entries
+  }, [])
+
+  const reviews = useMemo(() => {
+    const catalogIds = new Set(mockDishes.map((dish) => dish.id))
+    const existingRelevant = mockReviews.filter((review) => catalogIds.has(review.dishId))
+    return [...existingRelevant, ...generatedReviews]
+  }, [generatedReviews])
+
+  const filteredDishes = useMemo(() => {
+    return mockDishes.filter((dish) => {
+      const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesCategory = selectedCategory === "all" || dish.category === selectedCategory
+      const matchesPrice =
+        priceFilter === "all" ||
+        (priceFilter === "low" && dish.price < 40000) ||
+        (priceFilter === "medium" && dish.price >= 40000 && dish.price < 60000) ||
+        (priceFilter === "high" && dish.price >= 60000)
+
+      return matchesSearch && matchesCategory && matchesPrice && dish.isAvailable
+    })
+  }, [priceFilter, searchQuery, selectedCategory])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, priceFilter])
 
   useEffect(() => {
     if (!filteredDishes.length) {
@@ -46,6 +122,27 @@ export default function FoodPage() {
     }
   }, [filteredDishes, selectedDishId])
 
+  const totalPages = filteredDishes.length ? Math.ceil(filteredDishes.length / ITEMS_PER_PAGE) : 1
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedDishes = useMemo(() => {
+    if (!filteredDishes.length) return []
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredDishes.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [currentPage, filteredDishes])
+
+  useEffect(() => {
+    if (!paginatedDishes.length) return
+    if (!selectedDishId || !paginatedDishes.some((dish) => dish.id === selectedDishId)) {
+      setSelectedDishId(paginatedDishes[0].id)
+    }
+  }, [paginatedDishes, selectedDishId])
+
   const selectedDish = useMemo(
     () => filteredDishes.find((dish) => dish.id === selectedDishId) ?? filteredDishes[0],
     [filteredDishes, selectedDishId],
@@ -53,8 +150,8 @@ export default function FoodPage() {
 
   const selectedDishReviews = useMemo(() => {
     if (!selectedDish) return []
-    return mockReviews.filter((review) => review.dishId === selectedDish.id)
-  }, [selectedDish])
+    return reviews.filter((review) => review.dishId === selectedDish.id)
+  }, [reviews, selectedDish])
 
   const overallRating = useMemo(() => {
     if (!selectedDishReviews.length) return null
@@ -62,7 +159,7 @@ export default function FoodPage() {
     return (total / selectedDishReviews.length).toFixed(1)
   }, [selectedDishReviews])
 
-  const handleAddToCart = (dish: (typeof mockDishes)[0]) => {
+  const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
     toast({
       title: "Đã thêm vào giỏ hàng",
@@ -128,75 +225,123 @@ export default function FoodPage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Dishes Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredDishes.map((dish) => {
-            const isSelected = selectedDish?.id === dish.id
-            const restaurant = getRestaurant(dish.restaurantId)
-            return (
-              <Card
-                key={dish.id}
-                tabIndex={0}
-                role="button"
-                onClick={() => setSelectedDishId(dish.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    setSelectedDishId(dish.id)
-                  }
-                }}
-                className={`overflow-hidden border-2 transition-all focus:outline-none ${
-                  isSelected ? "border-primary shadow-lg" : "border-border/50 hover:border-primary/70 hover:shadow-lg"
-                }`}
-              >
-                <CardContent className="space-y-4 p-0">
-                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                    <Image src={dish.image || "/placeholder.svg"} alt={dish.name} fill className="object-cover" />
-                    {dish.tags.includes("Popular") && (
-                      <Badge className="absolute right-2 top-2 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground shadow-sm">
-                        Phổ biến
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="space-y-3 px-4 pb-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="line-clamp-1 text-lg font-semibold text-card-foreground">{dish.name}</h3>
-                        {restaurant && <p className="text-xs text-muted-foreground">{restaurant.name}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 text-sm text-amber-500">
-                        <Star className="h-4 w-4 fill-current" />
-                        <span className="font-semibold">{dish.rating}</span>
-                        <span className="text-xs text-muted-foreground">({dish.totalReviews})</span>
-                      </div>
-                    </div>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">{dish.description}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {dish.tags.slice(0, 4).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="rounded-full border-primary/20 bg-primary/5 px-2 text-xs font-medium text-primary"
-                        >
-                          {tag}
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {paginatedDishes.map((dish) => {
+              const isSelected = selectedDish?.id === dish.id
+              const restaurant = getRestaurant(dish.restaurantId)
+              return (
+                <Card
+                  key={dish.id}
+                  tabIndex={0}
+                  role="button"
+                  onClick={() => setSelectedDishId(dish.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      setSelectedDishId(dish.id)
+                    }
+                  }}
+                  className={`flex h-full flex-col gap-0 overflow-hidden border-2 py-0 transition-all focus:outline-none ${
+                    isSelected ? "border-primary shadow-lg" : "border-border/50 hover:border-primary/70 hover:shadow-lg"
+                  }`}
+                >
+                  <CardContent className="flex flex-1 flex-col p-0">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                      <Image src={dish.image || "/placeholder.svg"} alt={dish.name} fill className="object-cover" />
+                      {dish.tags.includes("Popular") && (
+                        <Badge className="absolute right-2 top-2 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                          Phổ biến
                         </Badge>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex items-center justify-between border-t border-border bg-muted/20 p-4">
-                  <span className="text-xl font-semibold text-primary">{dish.price.toLocaleString("vi-VN")}đ</span>
-                  <Button
-                    size="sm"
-                    className="min-w-[110px] rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_16px_rgba(34,197,94,0.2)] hover:bg-primary/90"
-                    onClick={() => handleAddToCart(dish)}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Thêm
-                  </Button>
-                </CardFooter>
-              </Card>
-            )
-          })}
+                    <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="line-clamp-1 text-lg font-semibold text-card-foreground">{dish.name}</h3>
+                          {restaurant && <p className="text-xs text-muted-foreground">{restaurant.name}</p>}
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-amber-500">
+                          <Star className="h-4 w-4 fill-current" />
+                          <span className="font-semibold">{dish.rating}</span>
+                          <span className="text-xs text-muted-foreground">({dish.totalReviews})</span>
+                        </div>
+                      </div>
+                      <p className="min-h-[2.5rem] text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
+                      <div className="mt-auto flex flex-wrap gap-2">
+                        {dish.tags.slice(0, 4).map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="rounded-full border-primary/20 bg-primary/5 px-2 text-xs font-medium text-primary"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex items-center justify-between border-t border-border bg-muted/20 p-4">
+                    <span className="text-xl font-semibold text-primary">{dish.price.toLocaleString("vi-VN")}đ</span>
+                    <Button
+                      size="sm"
+                      className="min-w-[110px] rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[0_8px_16px_rgba(34,197,94,0.2)] hover:bg-primary/90"
+                      onClick={() => handleAddToCart(dish)}
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      Thêm
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }}
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const pageNumber = index + 1
+                  return (
+                    <PaginationItem key={pageNumber}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pageNumber === currentPage}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setCurrentPage(pageNumber)
+                        }}
+                      >
+                        {pageNumber}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                })}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }}
+                    aria-disabled={currentPage === totalPages}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
 
         {/* Reviews Panel */}
@@ -211,6 +356,11 @@ export default function FoodPage() {
                 </div>
               )}
             </div>
+            {selectedDish && (
+              <div className="rounded-lg bg-muted/15 p-3 text-sm text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
+                {selectedDish.description}
+              </div>
+            )}
             {overallRating && (
                 <p className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
                   Đánh giá trung bình: 
