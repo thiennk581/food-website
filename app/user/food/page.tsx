@@ -25,7 +25,7 @@ import {
   dishMetadata,
   type DishFilterOption,
 } from "@/lib/mock-data"
-import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw } from "lucide-react"
+import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Pagination,
@@ -44,7 +44,6 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-// --- (Các component con giữ nguyên, không thay đổi) ---
 const DEFAULT_DISH_META = {
   cuisine: "Món Việt",
   mainIngredients: [] as string[],
@@ -136,7 +135,6 @@ const PriceRangeFilter = ({ minPrice, maxPrice, onMinPriceChange, onMaxPriceChan
   )
 }
 
-// --- Component chính ---
 export default function FoodPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCuisine, setSelectedCuisine] = useState("all")
@@ -149,12 +147,11 @@ export default function FoodPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const { addToCart } = useCart()
   const { toast } = useToast()
-  
+
   const ITEMS_PER_PAGE = 6
-  
-  // === THAY ĐỔI 1: STATE MỚI CHO BỘ LỌC VÀ "XEM THÊM" ===
-  const [selectedRatingFilter, setSelectedRatingFilter] = useState<number>(0) // 0 là "Tất cả"
-  const REVIEWS_PER_PAGE = 3 // Số review hiển thị mỗi lần
+
+  const [selectedRatingFilter, setSelectedRatingFilter] = useState<number>(0)
+  const REVIEWS_PER_PAGE = 3
   const [visibleReviewCount, setVisibleReviewCount] = useState(REVIEWS_PER_PAGE)
 
 
@@ -208,7 +205,6 @@ export default function FoodPage() {
     }
   }, [filteredDishes, selectedDishId])
 
-  // === THAY ĐỔI 2: RESET BỘ LỌC REVIEW KHI CHỌN MÓN ĂN MỚI ===
   useEffect(() => {
     setSelectedRatingFilter(0)
     setVisibleReviewCount(REVIEWS_PER_PAGE)
@@ -240,15 +236,14 @@ export default function FoodPage() {
     [filteredDishes, selectedDishId],
   )
 
-  // === THAY ĐỔI 3: LOGIC LỌC VÀ PHÂN TRANG CHO REVIEW ===
   const filteredReviews = useMemo(() => {
     if (!selectedDish) return []
     const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
-    
+
     if (selectedRatingFilter === 0) {
-      return allReviewsForDish // Trả về tất cả nếu không lọc
+      return allReviewsForDish
     }
-    
+
     // Lọc theo số sao chính xác
     return allReviewsForDish.filter(review => Math.floor(review.rating) === selectedRatingFilter)
   }, [selectedDish, selectedRatingFilter])
@@ -256,7 +251,7 @@ export default function FoodPage() {
   const visibleReviews = useMemo(() => {
     return filteredReviews.slice(0, visibleReviewCount)
   }, [filteredReviews, visibleReviewCount])
-  
+
   const overallRating = useMemo(() => {
     if (!selectedDish) return null
     const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
@@ -268,8 +263,14 @@ export default function FoodPage() {
   const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
     toast({
-      title: "Đã thêm vào giỏ hàng",
-      description: `${dish.name} đã được thêm vào giỏ hàng`,
+      title: (
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <span className="font-medium">
+            "{dish.name}" đã được thêm vào giỏ hàng!
+          </span>
+        </div>
+      ),
     })
   }
 
@@ -376,11 +377,10 @@ export default function FoodPage() {
                       setSelectedDishId(dish.id)
                     }
                   }}
-                  className={`flex h-full flex-col gap-0 overflow-hidden border-2 py-0 transition-all duration-200 focus:outline-none ${
-                    isSelected
-                      ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xl"
-                      : "border-border/50 hover:border-primary/70 hover:shadow-lg hover:-translate-y-1"
-                  }`}
+                  className={`flex h-full flex-col gap-0 overflow-hidden border-2 py-0 transition-all duration-200 focus:outline-none ${isSelected
+                    ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background shadow-xl"
+                    : "border-border/50 hover:border-primary/70 hover:shadow-lg hover:-translate-y-1"
+                    }`}
                 >
                   <CardContent className="flex flex-1 flex-col p-0">
                     <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -398,8 +398,8 @@ export default function FoodPage() {
                           {restaurant && <p className="text-xs text-muted-foreground line-clamp-1">{restaurant.name}</p>}
                         </div>
                         <div className="flex items-center gap-1 text-sm text-amber-500 flex-shrink-0">
-                          <span className="font-semibold">{dish.rating}</span>
                           <Star className="h-4 w-4 fill-current" />
+                          <span className="font-semibold">{dish.rating}</span>
                         </div>
                       </div>
                       <p className="min-h-[2.5rem] text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
@@ -479,7 +479,6 @@ export default function FoodPage() {
           )}
         </div>
 
-        {/* === THAY ĐỔI 4: CẬP NHẬT TOÀN BỘ CỘT BÊN PHẢI === */}
         <div className="flex flex-col gap-8">
           {selectedDish ? (
             <>
@@ -519,80 +518,77 @@ export default function FoodPage() {
 
               {/* Card 2: Đánh giá với bộ lọc và nút "Xem thêm" */}
               <aside className="h-fit rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-  {/* Header mới với tiêu đề và Dropdown lọc */}
-  <div className="px-4 py-3 flex justify-between items-center border-b border-border">
-    <h3 className="text-lg font-semibold">
-      Đánh giá
-      {selectedDish && (
-        <span className="ml-2 text-sm font-normal text-muted-foreground">
-          ({allMockReviews.filter(r => r.dishId === selectedDish.id).length} lượt)
-        </span>
-      )}
-    </h3>
+                <div className="px-4 py-3 flex justify-between items-center border-b border-border">
+                  <h3 className="text-lg font-semibold">
+                    Đánh giá
+                    {selectedDish && (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        ({allMockReviews.filter(r => r.dishId === selectedDish.id).length} lượt)
+                      </span>
+                    )}
+                  </h3>
 
-    {/* Dropdown Menu Lọc Sao */}
-    <Select
-      value={selectedRatingFilter.toString()}
-      onValueChange={(value) => {
-        setSelectedRatingFilter(Number(value))
-        setVisibleReviewCount(REVIEWS_PER_PAGE) // Reset khi lọc
-      }}
-    >
-      <SelectTrigger className="w-auto h-9">
-        <SelectValue placeholder="Lọc theo sao" />
-      </SelectTrigger>
-      <SelectContent>
-        {[0, 5, 4, 3, 2, 1].map((rating) => (
-          <SelectItem key={rating} value={rating.toString()}>
-            {rating === 0 ? "Tất cả" : (
-              <span className="flex items-center gap-1.5">
-                {rating} <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              </span>
-            )}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
+                  <Select
+                    value={selectedRatingFilter.toString()}
+                    onValueChange={(value) => {
+                      setSelectedRatingFilter(Number(value))
+                      setVisibleReviewCount(REVIEWS_PER_PAGE) // Reset khi lọc
+                    }}
+                  >
+                    <SelectTrigger className="w-auto h-9">
+                      <SelectValue placeholder="Lọc theo sao" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[0, 5, 4, 3, 2, 1].map((rating) => (
+                        <SelectItem key={rating} value={rating.toString()}>
+                          {rating === 0 ? "Tất cả" : (
+                            <span className="flex items-center gap-1.5">
+                              {rating} <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-  {/* Phần danh sách review và nút "Xem thêm" (giữ nguyên) */}
-  <div className="max-h-[450px] overflow-y-auto p-4">
-    <div className="flex flex-col gap-3">
-      {visibleReviews.length > 0 ? (
-        visibleReviews.map((review) => (
-          <div key={review.id} className="rounded-lg border border-border bg-muted/30 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-medium text-card-foreground">{review.userName}</p>
-              <div className="flex items-center gap-1 text-sm font-semibold text-amber-500">
-                <Star className="h-4 w-4 fill-current" />
-                <span>{review.rating.toFixed(1)}</span>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">{review.comment}</p>
-            <p className="mt-3 text-xs text-muted-foreground">
-              {new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(review.createdAt))}
-            </p>
-          </div>
-        ))
-      ) : (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          Không có đánh giá nào phù hợp.
-        </div>
-      )}
-    </div>
-    
-    {visibleReviewCount < filteredReviews.length && (
-       <div className="mt-4 text-center">
-         <Button 
-           variant="ghost" 
-           onClick={() => setVisibleReviewCount(prev => prev + REVIEWS_PER_PAGE)}
-         >
-           Xem thêm {Math.min(REVIEWS_PER_PAGE, filteredReviews.length - visibleReviewCount)} đánh giá
-         </Button>
-       </div>
-    )}
-  </div>
-</aside>
+                <div className="max-h-[450px] overflow-y-auto p-4">
+                  <div className="flex flex-col gap-3">
+                    {visibleReviews.length > 0 ? (
+                      visibleReviews.map((review) => (
+                        <div key={review.id} className="rounded-lg border border-border bg-muted/30 p-3">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="font-medium text-card-foreground">{review.userName}</p>
+                            <div className="flex items-center gap-1 text-sm font-semibold text-amber-500">
+                              <Star className="h-4 w-4 fill-current" />
+                              <span>{review.rating.toFixed(1)}</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{review.comment}</p>
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            {new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(review.createdAt))}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-sm text-muted-foreground">
+                        Không có đánh giá nào phù hợp.
+                      </div>
+                    )}
+                  </div>
+
+                  {visibleReviewCount < filteredReviews.length && (
+                    <div className="mt-4 text-center">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setVisibleReviewCount(prev => prev + REVIEWS_PER_PAGE)}
+                      >
+                        Xem thêm {Math.min(REVIEWS_PER_PAGE, filteredReviews.length - visibleReviewCount)} đánh giá
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </aside>
             </>
           ) : (
             <div className="h-fit rounded-xl border border-border bg-card shadow-sm p-8 text-center text-muted-foreground">
