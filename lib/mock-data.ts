@@ -769,22 +769,30 @@ export const mockOrders: Order[] = [
       {
         dishId: "dish_1",
         dishName: "Phở Bò Tái",
-        dishImage: "/beef-pho.png",
+        dishImage: "/vietnamese-beef-pho-bowl.jpg",
         quantity: 2,
         price: 55000,
       },
+      {
+        dishId: "dish_spicy_pho_sate",
+        dishName: "Phở Bò Sa Tế Đà Nẵng",
+        dishImage: "/vietnamese-beef-pho-bowl.jpg",
+        quantity: 1,
+        price: 82000,
+      },
     ],
     status: "completed",
-    totalAmount: 110000,
+    totalAmount: 192000,
     deliveryAddress: {
       id: "addr_1",
       userId: "user_1",
-      label: "Home",
+      label: "Nhà riêng",
       street: "789 Nguyễn Trãi",
       city: "TP.HCM",
       district: "Q.5",
       isDefault: true,
     },
+    note: "Cho thêm rau thơm và ớt.",
     createdAt: "2024-10-10T10:00:00Z",
     updatedAt: "2024-10-10T11:30:00Z",
   },
@@ -929,3 +937,46 @@ const generatedReviews = generateDynamicReviews(mockDishes)
 
 // Tạo một mảng tổng hợp chứa cả review gốc và review vừa tạo
 export const allMockReviews: Review[] = [...mockReviews, ...generatedReviews]
+
+export interface Address {
+  id: string
+  fullAddress: string // Chỉ còn lại địa chỉ đầy đủ
+  isDefault: boolean
+}
+
+export interface MockUser {
+  id: string
+  fullName: string
+  email: string
+  phone: string
+  addresses: Address[]
+}
+
+export const mockUser: MockUser = {
+  id: "user_123",
+  fullName: "Nguyễn Văn A",
+  email: "user@example.com",
+  phone: "0987 654 321",
+  addresses: [
+    {
+      id: "addr_1",
+      fullAddress: "Tòa nhà XYZ, 456 Đường DEF, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh. Lầu 5, Phòng A",
+      isDefault: true,
+    },
+    {
+      id: "addr_2",
+      fullAddress: "123 Đường ABC, Phường 1, Quận 3, TP. Hồ Chí Minh",
+      isDefault: false,
+    },
+    {
+      id: "addr_3",
+      fullAddress: "789 Đường GHI, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh",
+      isDefault: false,
+    },
+    {
+      id: "addr_4",
+      fullAddress: "456 Đường JKL, Phường 10, Quận 5, TP. Hồ Chí Minh",
+      isDefault: false,
+    }
+  ],
+}
