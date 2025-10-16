@@ -73,11 +73,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             <Button variant="ghost" size="icon" className="relative" asChild>
               <Link href="/user/cart">
                 <ShoppingCart className="h-5 w-5" />
-                {cartItemCount > 0 && (
+                {/* {cartItemCount > 0 && (
                   <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs" variant="destructive">
                     {cartItemCount}
                   </Badge>
-                )}
+                )} */}
               </Link>
             </Button>
 
