@@ -760,41 +760,63 @@ export const dishMetadata: Record<string, DishMeta> = {
   },
 }
 
+
+
+// Thêm danh sách đơn hàng giả
 export const mockOrders: Order[] = [
   {
     id: "order_1",
-    userId: "user_1",
-    restaurantId: "rest_1",
+    createdAt: "2024-10-26T10:00:00Z",
+    deliveryAddress: "Tòa nhà XYZ, 456 Đường DEF, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh. Lầu 5, Phòng A",
     items: [
       {
-        dishId: "dish_1",
-        dishName: "Phở Bò Tái",
-        dishImage: "/vietnamese-beef-pho-bowl.jpg",
+        dishId: "dish_1", // Phở Bò Tái
+        restaurantId: "rest_1",
         quantity: 2,
         price: 55000,
       },
       {
-        dishId: "dish_spicy_pho_sate",
-        dishName: "Phở Bò Sa Tế Đà Nẵng",
-        dishImage: "/vietnamese-beef-pho-bowl.jpg",
+        dishId: "dish_2", // Phở Gà
+        restaurantId: "rest_1",
         quantity: 1,
-        price: 82000,
+        price: 50000,
       },
     ],
-    status: "completed",
-    totalAmount: 192000,
-    deliveryAddress: {
-      id: "addr_1",
-      userId: "user_1",
-      label: "Nhà riêng",
-      street: "789 Nguyễn Trãi",
-      city: "TP.HCM",
-      district: "Q.5",
-      isDefault: true,
-    },
-    note: "Cho thêm rau thơm và ớt.",
-    createdAt: "2024-10-10T10:00:00Z",
-    updatedAt: "2024-10-10T11:30:00Z",
+    totalAmount: 160000,
+  },
+  {
+    id: "order_2",
+    createdAt: "2024-10-25T18:30:00Z",
+    deliveryAddress: "123 Đường ABC, Phường 1, Quận 3, TP. Hồ Chí Minh",
+    items: [
+      {
+        dishId: "dish_3", // Cơm Tấm Sườn Bì Chả
+        restaurantId: "rest_2",
+        quantity: 1,
+        price: 45000,
+      },
+      {
+        dishId: "dish_5", // Bánh Mì Thịt Nguội
+        restaurantId: "rest_3",
+        quantity: 2,
+        price: 25000,
+      },
+    ],
+    totalAmount: 95000,
+  },
+  {
+    id: "order_3",
+    createdAt: "2024-10-24T12:15:00Z",
+    deliveryAddress: "789 Đường GHI, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh",
+    items: [
+      {
+        dishId: "dish_6", // Bánh Mì Xíu Mại
+        restaurantId: "rest_3",
+        quantity: 3,
+        price: 30000,
+      },
+    ],
+    totalAmount: 90000,
   },
 ]
 

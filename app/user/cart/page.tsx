@@ -67,6 +67,8 @@ export default function CartPage() {
     })
 
     clearCart()
+
+    router.push("/user/orders")
   }
 
   if (cart.items.length === 0) {

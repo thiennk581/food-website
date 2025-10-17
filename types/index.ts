@@ -74,26 +74,21 @@ export interface Cart {
 // Order Types
 export type OrderStatus = "pending" | "confirmed" | "preparing" | "delivering" | "completed" | "cancelled"
 
-export interface Order {
-  id: string
-  userId: string
-  restaurantId: string
-  items: OrderItem[]
-  status: OrderStatus
-  totalAmount: number
-  deliveryAddress: Address
-  note?: string
-  createdAt: string
-  updatedAt: string
-}
-
+// Chi tiết một món ăn trong đơn hàng
 export interface OrderItem {
   dishId: string
-  dishName: string
-  dishImage: string
+  restaurantId: String
   quantity: number
-  price: number
-  note?: string
+  price: number // Giá tại thời điểm đặt hàng
+}
+
+// Cấu trúc của một đơn hàng hoàn chỉnh
+export interface Order {
+  id: string // ID duy nhất của đơn hàng
+  createdAt: string // Thời gian đặt hàng (dưới dạng ISO string)
+  items: OrderItem[]
+  totalAmount: number
+  deliveryAddress: string // Địa chỉ giao hàng
 }
 
 // Review Types
