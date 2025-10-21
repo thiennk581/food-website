@@ -89,6 +89,7 @@ export interface Order {
   items: OrderItem[]
   totalAmount: number
   deliveryAddress: string // Địa chỉ giao hàng
+  status: OrderStatus
 }
 
 // Review Types

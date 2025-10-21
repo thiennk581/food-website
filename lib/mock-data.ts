@@ -763,11 +763,14 @@ export const dishMetadata: Record<string, DishMeta> = {
 
 
 // Thêm danh sách đơn hàng giả
+// Dán để thay thế cho mảng mockOrders cũ của bạn
+
 export const mockOrders: Order[] = [
   {
     id: "order_1",
     createdAt: "2024-10-26T10:00:00Z",
     deliveryAddress: "Tòa nhà XYZ, 456 Đường DEF, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh. Lầu 5, Phòng A",
+    status: "completed",
     items: [
       {
         dishId: "dish_1", // Phở Bò Tái
@@ -788,6 +791,7 @@ export const mockOrders: Order[] = [
     id: "order_2",
     createdAt: "2024-10-25T18:30:00Z",
     deliveryAddress: "123 Đường ABC, Phường 1, Quận 3, TP. Hồ Chí Minh",
+    status: "delivering",
     items: [
       {
         dishId: "dish_3", // Cơm Tấm Sườn Bì Chả
@@ -808,6 +812,7 @@ export const mockOrders: Order[] = [
     id: "order_3",
     createdAt: "2024-10-24T12:15:00Z",
     deliveryAddress: "789 Đường GHI, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh",
+    status: "cancelled",
     items: [
       {
         dishId: "dish_6", // Bánh Mì Xíu Mại
@@ -817,6 +822,91 @@ export const mockOrders: Order[] = [
       },
     ],
     totalAmount: 90000,
+  },
+  // === DỮ LIỆU MỚI THÊM VÀO ===
+  {
+    id: "order_4",
+    createdAt: "2024-10-23T09:05:00Z",
+    deliveryAddress: "Tòa nhà XYZ, 456 Đường DEF, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh. Lầu 5, Phòng A",
+    status: "cancelled",
+    items: [
+      {
+        dishId: "dish_crispy_short_rib", // Cơm Tấm Sườn Non Giòn
+        restaurantId: "rest_2",
+        quantity: 1,
+        price: 63000,
+      },
+      {
+        dishId: "dish_banh_mi_pate_foie", // Bánh Mì Pate Gan Ngỗng
+        restaurantId: "rest_3",
+        quantity: 2,
+        price: 55000,
+      },
+    ],
+    totalAmount: 173000,
+  },
+  {
+    id: "order_5",
+    createdAt: "2024-10-22T20:00:00Z",
+    deliveryAddress: "123 Đường ABC, Phường 1, Quận 3, TP. Hồ Chí Minh",
+    status: "completed",
+    items: [
+      {
+        dishId: "dish_wagyu_pho", // Phở Bò Wagyu
+        restaurantId: "rest_1",
+        quantity: 2,
+        price: 95000,
+      },
+      {
+        dishId: "dish_salted_egg_rice", // Cơm Tấm Trứng Muối Sốt Bơ
+        restaurantId: "rest_2",
+        quantity: 1,
+        price: 69000,
+      },
+      {
+        dishId: "dish_banh_mi_grilled_chicken", // Bánh Mì Gà Nướng Lá Chanh
+        restaurantId: "rest_3",
+        quantity: 3,
+        price: 42000,
+      },
+    ],
+    totalAmount: 385000,
+  },
+  {
+    id: "order_6",
+    createdAt: "2024-10-21T11:30:00Z",
+    deliveryAddress: "789 Đường GHI, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh",
+    status: "completed",
+    items: [
+      {
+        dishId: "dish_spicy_pho_sate", // Phở Bò Sa Tế Đà Nẵng
+        restaurantId: "rest_1",
+        quantity: 4,
+        price: 82000,
+      },
+    ],
+    totalAmount: 328000,
+  },
+  {
+    id: "order_7",
+    createdAt: "2024-10-20T14:00:00Z",
+    deliveryAddress: "456 Đường JKL, Phường 10, Quận 5, TP. Hồ Chí Minh",
+    status: "delivering",
+    items: [
+      {
+        dishId: "dish_veggie_banh_mi", // Bánh Mì Nấm Đậu Phụ
+        restaurantId: "rest_3",
+        quantity: 2,
+        price: 39000,
+      },
+      {
+        dishId: "dish_truffle_pho", // Phở Bò Sốt Nấm Truffle
+        restaurantId: "rest_1",
+        quantity: 1,
+        price: 115000,
+      },
+    ],
+    totalAmount: 193000,
   },
 ]
 
