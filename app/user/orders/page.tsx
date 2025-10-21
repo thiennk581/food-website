@@ -176,8 +176,9 @@ export default function OrdersPage() {
               <>
                 {/* Thông tin giao hàng */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Thông tin giao hàng</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg font-semibold">Thông tin giao hàng</CardTitle>
+                    {getStatusBadge(selectedOrder.status)}
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     <div className="grid grid-cols-3 items-center gap-x-4">
@@ -212,9 +213,14 @@ export default function OrdersPage() {
                 {/* Chi tiết sản phẩm */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Chi tiết đơn hàng</CardTitle>
+                    <CardTitle className="text-lg font-semibold">
+                      Chi tiết đơn hàng{" "}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ({selectedOrder.items.length} món)
+                      </span>
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="divide-y">
+                  <CardContent className="max-h-[450px] overflow-y-auto divide-y">
                     {selectedOrder.items.map((item) => {
                       const dishDetails = getDishDetails(item.dishId)
                       if (!dishDetails) return null

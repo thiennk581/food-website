@@ -869,6 +869,30 @@ export const mockOrders: Order[] = [
         quantity: 3,
         price: 42000,
       },
+      {
+        dishId: "dish_crispy_short_rib", // Cơm Tấm Sườn Non Giòn
+        restaurantId: "rest_2",
+        quantity: 1,
+        price: 63000,
+      },
+      {
+        dishId: "dish_banh_mi_pate_foie", // Bánh Mì Pate Gan Ngỗng
+        restaurantId: "rest_3",
+        quantity: 2,
+        price: 55000,
+      },
+      {
+        dishId: "dish_3", // Cơm Tấm Sườn Bì Chả
+        restaurantId: "rest_2",
+        quantity: 1,
+        price: 45000,
+      },
+      {
+        dishId: "dish_5", // Bánh Mì Thịt Nguội
+        restaurantId: "rest_3",
+        quantity: 2,
+        price: 25000,
+      },
     ],
     totalAmount: 385000,
   },
