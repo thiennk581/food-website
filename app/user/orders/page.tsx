@@ -5,7 +5,7 @@ import { useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import type { Order, OrderStatus } from "@/types"
+import type { Order, OrderStatus, Dish } from "@/types"
 import { mockOrders, mockRestaurants, mockUser, mockDishes } from "@/lib/mock-data"
 import {
   Pagination,
@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/pagination"
 import { Package, MapPin, Star, Clock, CheckCircle2, XCircle, Truck } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-// Hàm trợ giúp để lấy tên nhà hàng
+import { ReviewDialog } from "@/components/review-dialog"
 const getRestaurantName = (restaurantId: string) => {
   return mockRestaurants.find((r) => r.id === restaurantId)?.name || "Không rõ nhà hàng"
 }
@@ -56,9 +55,11 @@ const getStatusBadge = (status: OrderStatus) => {
 }
 
 export default function OrdersPage() {
-  const orders = mockOrders
+  const [orders, setOrders] = useState<Order[]>(mockOrders)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null)
   const user = mockUser // Lấy thông tin người dùng giả
+  const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
+  const [reviewingItem, setReviewingItem] = useState<{ dish: Dish; orderId: string; dishId: string } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
   const totalPages = Math.ceil(orders.length / ordersPerPage)
@@ -84,9 +85,42 @@ export default function OrdersPage() {
     )
   }
 
+  const handleReviewSubmit = (rating: number, comment: string) => {
+    if (!reviewingItem) return
+
+    const newOrders = orders.map((order) => {
+      if (order.id === reviewingItem.orderId) {
+        const updatedItems = order.items.map((item) => {
+          if (item.dishId === reviewingItem.dishId) {
+            return { ...item, isRated: true }
+          }
+          return item
+        })
+        return { ...order, items: updatedItems }
+      }
+      return order
+    })
+
+    setOrders(newOrders)
+
+    // Find the updated order and set it as the selectedOrder
+    const updatedSelectedOrder = newOrders.find((o) => o.id === selectedOrder?.id)
+    if (updatedSelectedOrder) {
+      setSelectedOrder(updatedSelectedOrder)
+    }
+
+    console.log("Review submitted:", {
+      dishId: reviewingItem.dish.id,
+      rating,
+      comment,
+    })
+    setReviewDialogOpen(false)
+  }
+
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8">
-      <h1 className="mb-8 text-3xl font-bold text-foreground">Đơn hàng của tôi</h1>
+    <>
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <h1 className="mb-8 text-3xl font-bold text-foreground">Đơn hàng của tôi</h1>
 
       <div className="grid grid-cols-5 gap-13">
         {/* Cột trái: Danh sách đơn hàng */}
@@ -248,10 +282,27 @@ export default function OrdersPage() {
                               {(item.price * item.quantity).toLocaleString("vi-VN")}đ
                             </p>
                             <p className="text-sm text-muted-foreground">SL: {item.quantity}</p>
-                            <Button variant="outline" size="sm" className="mt-3">
-                              <Star className="mr-1.5 h-4 w-4" />
-                              Đánh giá
-                            </Button>
+                            {selectedOrder.status === "completed" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-3"
+                                onClick={() => {
+                                  if (selectedOrder) {
+                                    setReviewingItem({
+                                      dish: dishDetails,
+                                      orderId: selectedOrder.id,
+                                      dishId: item.dishId,
+                                    })
+                                    setReviewDialogOpen(true)
+                                  }
+                                }}
+                                disabled={!!item.isRated}
+                              >
+                                <Star className="mr-1.5 h-4 w-4" />
+                                {item.isRated ? "Đã đánh giá" : "Đánh giá"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )
@@ -277,6 +328,13 @@ export default function OrdersPage() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      <ReviewDialog
+        dish={reviewingItem?.dish ?? null}
+        open={isReviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        onSubmit={handleReviewSubmit}
+      />
+    </>
   )
 }
