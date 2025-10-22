@@ -29,7 +29,7 @@ export interface Bias {
   id: string
   userId: string
   tagId: string
-  score: Number
+  score: number
 }
 
 export interface Address {
