@@ -1,4 +1,7 @@
-import type { Restaurant, Dish, Order, Review, DashboardStats, RevenueData } from "@/types"
+import type { Restaurant, Dish, Order, Review, DashboardStats, RevenueData, Category, Tag, User, Address, Bias } from "@/types"
+
+const USER_ID = "user_1"
+
 
 export const mockRestaurants: Restaurant[] = [
   {
@@ -1091,45 +1094,126 @@ const generatedReviews = generateDynamicReviews(mockDishes)
 // Tạo một mảng tổng hợp chứa cả review gốc và review vừa tạo
 export const allMockReviews: Review[] = [...mockReviews, ...generatedReviews]
 
-export interface Address {
-  id: string
-  fullAddress: string // Chỉ còn lại địa chỉ đầy đủ
-  isDefault: boolean
-}
 
-export interface MockUser {
-  id: string
-  fullName: string
-  email: string
-  phone: string
-  addresses: Address[]
-}
 
-export const mockUser: MockUser = {
-  id: "user_123",
-  fullName: "Nguyễn Văn A",
-  email: "user@example.com",
-  phone: "0987 654 321",
-  addresses: [
-    {
-      id: "addr_1",
-      fullAddress: "Tòa nhà XYZ, 456 Đường DEF, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh. Lầu 5, Phòng A",
-      isDefault: true,
-    },
-    {
-      id: "addr_2",
-      fullAddress: "123 Đường ABC, Phường 1, Quận 3, TP. Hồ Chí Minh",
-      isDefault: false,
-    },
-    {
-      id: "addr_3",
-      fullAddress: "789 Đường GHI, Phường Tân Phú, Quận 7, TP. Hồ Chí Minh",
-      isDefault: false,
-    },
-    {
-      id: "addr_4",
-      fullAddress: "456 Đường JKL, Phường 10, Quận 5, TP. Hồ Chí Minh",
-      isDefault: false,
-    }
-  ],
-}
+
+
+
+export const mockCategories: Category[] = [
+  {
+    id: "cat_1",
+    name: "Ẩm Thực",
+  },
+  {
+    id: "cat_2",
+    name: "Nguyên Liệu Chính",
+  },
+  {
+    id: "cat_3",
+    name: "Phương Pháp Chế Biến",
+  },
+  {
+    id: "cat_4",
+    name: "Hương Vị",
+  },
+];
+
+export const mockTags: Tag[] = [
+  // Category 1: Ẩm Thực
+  { id: "tag_1_1", name: "Món Việt", categoryId: "cat_1" },
+  { id: "tag_1_2", name: "Món Hàn", categoryId: "cat_1" },
+  { id: "tag_1_3", name: "Món Nhật", categoryId: "cat_1" },
+  { id: "tag_1_4", name: "Món Trung", categoryId: "cat_1" },
+  { id: "tag_1_5", name: "Món Thái", categoryId: "cat_1" },
+  { id: "tag_1_6", name: "Món Âu", categoryId: "cat_1" },
+
+  // Category 2: Nguyên Liệu Chính
+  { id: "tag_2_1", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_2", name: "Thịt Heo", categoryId: "cat_2" },
+  { id: "tag_2_3", name: "Thịt Gà", categoryId: "cat_2" },
+  { id: "tag_2_4", name: "Hải Sản", categoryId: "cat_2" }, // Gồm Tôm, Cá...
+  { id: "tag_2_5", name: "Rau Củ", categoryId: "cat_2" },
+  { id: "tag_2_6", name: "Bánh Mì/Bún/Phở", categoryId: "cat_2" }, // Gồm Phở, Bánh Mì...
+
+  // Category 3: Phương Pháp Chế Biến
+  { id: "tag_3_1", name: "Chiên", categoryId: "cat_3" },
+  { id: "tag_3_2", name: "Xào", categoryId: "cat_3" },
+  { id: "tag_3_3", name: "Nấu/Canh", categoryId: "cat_3" },
+  { id: "tag_3_4", name: "Hấp", categoryId: "cat_3" },
+  { id: "tag_3_5", name: "Nướng/Quay", categoryId: "cat_3" },
+  { id: "tag_3_6", name: "Trộn/Gỏi", categoryId: "cat_3" },
+
+  // Category 4: Hương Vị
+  { id: "tag_4_1", name: "Chua", categoryId: "cat_4" },
+  { id: "tag_4_2", name: "Cay", categoryId: "cat_4" },
+  { id: "tag_4_3", name: "Mặn", categoryId: "cat_4" },
+  { id: "tag_4_4", name: "Ngọt", categoryId: "cat_4" },
+  { id: "tag_4_5", name: "Béo", categoryId: "cat_4" },
+  { id: "tag_4_6", name: "Thanh/Nhạt", categoryId: "cat_4" },
+];
+
+export const mockAddresses: Address[] = [
+  {
+    id: "addr_1",
+    userId: USER_ID,
+    address: "99 Đường Lê Lợi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+    isDefault: true, // Địa chỉ mặc định
+  },
+  {
+    id: "addr_2",
+    userId: USER_ID,
+    address: "Tòa nhà Bitexco, 2 Hải Triều, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh (Văn phòng)",
+    isDefault: false,
+  },
+  {
+    id: "addr_3",
+    userId: USER_ID,
+    address: "22/10 Đường Nguyễn Văn Linh, Quận 7, TP. Hồ Chí Minh (Nhà Ba Mẹ)",
+    isDefault: false,
+  },
+];
+
+export const mockBiases: Bias[] = [
+  // Ẩm Thực (cat_1)
+  { id: "bias_1", userId: USER_ID, tagId: "tag_1_1", score: 5 }, // Món Việt (Cực thích)
+  { id: "bias_2", userId: USER_ID, tagId: "tag_1_2", score: 1 }, // Món Hàn (Không thích)
+  { id: "bias_3", userId: USER_ID, tagId: "tag_1_3", score: 3 }, // Món Nhật (Bình thường)
+  { id: "bias_4", userId: USER_ID, tagId: "tag_1_4", score: 2 }, // Món Trung (Ít thích)
+  { id: "bias_5", userId: USER_ID, tagId: "tag_1_6", score: 4 }, // Món Âu (Thích)
+
+  // Nguyên Liệu Chính (cat_2)
+  { id: "bias_6", userId: USER_ID, tagId: "tag_2_1", score: 5 }, // Thịt Bò (Cực thích)
+  { id: "bias_7", userId: USER_ID, tagId: "tag_2_2", score: 3 }, // Thịt Heo (Bình thường)
+  { id: "bias_8", userId: USER_ID, tagId: "tag_2_3", score: 4 }, // Thịt Gà (Thích)
+  { id: "bias_9", userId: USER_ID, tagId: "tag_2_4", score: 2 }, // Hải Sản (Ít thích)
+  { id: "bias_10", userId: USER_ID, tagId: "tag_2_6", score: 5 }, // Bánh Mì/Bún/Phở (Cực thích)
+
+  // Phương Pháp Chế Biến (cat_3)
+  { id: "bias_11", userId: USER_ID, tagId: "tag_3_1", score: 4 }, // Chiên (Thích)
+  { id: "bias_12", userId: USER_ID, tagId: "tag_3_5", score: 5 }, // Nướng/Quay (Cực thích)
+  { id: "bias_13", userId: USER_ID, tagId: "tag_3_3", score: 3 }, // Nấu/Canh (Bình thường)
+  { id: "bias_14", userId: USER_ID, tagId: "tag_3_4", score: 1 }, // Hấp (Không thích)
+
+  // Hương Vị (cat_4)
+  { id: "bias_15", userId: USER_ID, tagId: "tag_4_2", score: 5 }, // Cay (Cực thích)
+  { id: "bias_16", userId: USER_ID, tagId: "tag_4_4", score: 2 }, // Ngọt (Ít thích)
+  { id: "bias_17", userId: USER_ID, tagId: "tag_4_5", score: 4 }, // Béo (Thích)
+  { id: "bias_18", userId: USER_ID, tagId: "tag_4_6", score: 1 }, // Thanh/Nhạt (Không thích)
+];
+
+// 3. Dữ liệu User
+export const mockUsers: User = 
+  {
+    id: USER_ID,
+    email: "nguyenvana.user@fakefoodapp.com",
+    name: "Nguyễn Văn B",
+    phone: "0901234567",
+    gender: "male",
+    birthdate: "1990-05-15",
+    role: "user",
+    createdAt: "2024-01-10T08:00:00Z",
+    isActive: true,
+    // Liên kết Biases và Addresses đã tạo ở trên
+    bias: mockBiases,
+    address: mockAddresses,
+  };

@@ -6,7 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { Order, OrderStatus, Dish } from "@/types"
-import { mockOrders, mockRestaurants, mockUser, mockDishes } from "@/lib/mock-data"
+import { mockOrders, mockRestaurants, mockUsers, mockDishes } from "@/lib/mock-data"
 import {
   Pagination,
   PaginationContent,
@@ -57,7 +57,7 @@ const getStatusBadge = (status: OrderStatus) => {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>(mockOrders)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null)
-  const user = mockUser // Lấy thông tin người dùng giả
+  const user = mockUsers // Lấy thông tin người dùng giả
   const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [reviewingItem, setReviewingItem] = useState<{ dish: Dish; orderId: string; dishId: string } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -230,11 +230,15 @@ export default function OrdersPage() {
                     <Separator className="my-2" />
                     <div className="grid grid-cols-3 items-center gap-x-4">
                       <span className="text-muted-foreground">Họ tên:</span>
-                      <span className="col-span-2 font-medium text-right">{user.fullName}</span>
+                      <span className="col-span-2 font-medium text-right">{user.name}</span>
                     </div>
                     <div className="grid grid-cols-3 items-center gap-x-4">
                       <span className="text-muted-foreground">Số điện thoại:</span>
                       <span className="col-span-2 font-medium text-right">{user.phone}</span>
+                    </div>
+                    <div className="grid grid-cols-3 items-center gap-x-4">
+                      <span className="text-muted-foreground">Email:</span>
+                      <span className="col-span-2 font-medium text-right">{user.email}</span>
                     </div>
                     <Separator className="my-2" />
                     <div className="space-y-1">

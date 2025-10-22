@@ -1,29 +1,41 @@
+export interface Category {
+  id: string
+  name: string
+}
+
+export interface Tag {
+  id: string
+  name: string
+  categoryId: string
+}
+
 // User Types
 export interface User {
   id: string
   email: string
   name: string
   phone: string
+  gender: "male" | "female" | "other"
+  birthdate: string
   role: "user" | "admin"
-  avatar?: string
   createdAt: string
   isActive: boolean
-  preferences?: UserPreferences
+  bias: Bias[]
+  address: Address[]
 }
 
-export interface UserPreferences {
-  favoriteCategories: string[]
-  dietaryRestrictions: string[]
-  spicyLevel: "none" | "mild" | "medium" | "hot" | "extra-hot"
+
+export interface Bias {
+  id: string
+  userId: string
+  tagId: string
+  score: Number
 }
 
 export interface Address {
   id: string
   userId: string
-  label: string
-  street: string
-  city: string
-  district: string
+  address: string
   isDefault: boolean
 }
 

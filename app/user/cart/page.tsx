@@ -25,7 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { mockUser } from "@/lib/mock-data"
+import { mockUsers } from "@/lib/mock-data"
 import { useToast } from "@/hooks/use-toast"
 
 export default function CartPage() {
@@ -34,11 +34,11 @@ export default function CartPage() {
   const { toast } = useToast()
 
   const [isCheckoutOpen, setCheckoutOpen] = useState(false)
-  const defaultAddress = mockUser.addresses.find(addr => addr.isDefault)
+  const defaultAddress = mockUsers.address.find(addr => addr.isDefault)
   const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>(defaultAddress?.id)
 
   const availableItems = cart.items.filter(item => item.dish.isAvailable)
-  const selectedAddress = mockUser.addresses.find(addr => addr.id === selectedAddressId)
+  const selectedAddress = mockUsers.address.find(addr => addr.id === selectedAddressId)
   
   const truncateAddress = (address: string | undefined, maxLength: number = 55) => {
     if (!address) return "Chọn địa chỉ"
@@ -47,8 +47,8 @@ export default function CartPage() {
 
   const handleConfirmOrder = () => {
     console.log("Đơn hàng đã được xác nhận:", {
-      user: mockUser.fullName,
-      address: selectedAddress?.fullAddress,
+      user: mockUsers.name,
+      address: selectedAddress?.address,
       items: availableItems,
       total: getTotalAmount(),
     })
@@ -207,9 +207,9 @@ export default function CartPage() {
             <div className="space-y-3">
               <h4 className="text-lg font-semibold">Thông tin giao hàng</h4>
               <div className="rounded-lg border p-4 space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Họ tên:</span> <span className="font-medium text-right">{mockUser.fullName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Email:</span> <span className="font-medium text-right">{mockUser.email}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Số điện thoại:</span> <span className="font-medium text-right">{mockUser.phone}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Họ tên:</span> <span className="font-medium text-right">{mockUsers.name}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Email:</span> <span className="font-medium text-right">{mockUsers.email}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Số điện thoại:</span> <span className="font-medium text-right">{mockUsers.phone}</span></div>
                 <Separator className="my-2" />
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">Địa chỉ giao hàng:</label>
@@ -220,17 +220,17 @@ export default function CartPage() {
                           <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
                             <SelectTrigger className="mt-1 h-auto w-full bg-white">
                               <span className="text-sm text-left">
-                                {truncateAddress(selectedAddress?.fullAddress)}
+                                {truncateAddress(selectedAddress?.address)}
                               </span>
                             </SelectTrigger>
                             <SelectContent className="max-w-xs">
-                            {mockUser.addresses.map(addr => (
+                            {mockUsers.address.map(addr => (
                               <SelectItem 
                                 key={addr.id} 
                                 value={addr.id} 
                                 className="whitespace-normal text-sm"
                               >
-                                <span className="block max-w-[300px]">{addr.fullAddress}</span>
+                                <span className="block max-w-[300px]">{addr.address}</span>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -238,7 +238,7 @@ export default function CartPage() {
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-sm break-words">
-                        <p>{selectedAddress?.fullAddress}</p>
+                        <p>{selectedAddress?.address}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
