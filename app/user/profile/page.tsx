@@ -15,6 +15,7 @@ import {
   Users,
   CheckCircle2,
   XCircle,
+  Search,
 } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -53,6 +54,7 @@ export default function ProfilePage() {
   const [birthdate, setBirthdate] = useState<Date | undefined>(
     user.birthdate ? new Date(user.birthdate) : undefined,
   )
+  const [searchTerm, setSearchTerm] = useState("")
 
   // Mock function to get tag name
   const getTagName = (tagId: string) => mockTags.find((t) => t.id === tagId)?.name || "Unknown Tag"
@@ -88,15 +90,15 @@ export default function ProfilePage() {
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile">
+          <TabsTrigger value="profile" className="py-2.5 text-sm md:text-base">
             <User className="mr-2 h-4 w-4" />
             Thông tin tài khoản
           </TabsTrigger>
-          <TabsTrigger value="addresses">
+          <TabsTrigger value="addresses" className="py-2.5 text-sm md:text-base">
             <MapPin className="mr-2 h-4 w-4" />
             Sổ địa chỉ
           </TabsTrigger>
-          <TabsTrigger value="preferences">
+          <TabsTrigger value="preferences" className="py-2.5 text-sm md:text-base">
             <Heart className="mr-2 h-4 w-4" />
             Tùy chọn ẩm thực
           </TabsTrigger>
@@ -105,7 +107,7 @@ export default function ProfilePage() {
         <TabsContent value="profile" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Thông tin cá nhân</CardTitle>
+              <CardTitle className="text-xl">Thông tin cá nhân</CardTitle>
               <CardDescription>Quản lý thông tin cá nhân của bạn.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -179,7 +181,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Sổ địa chỉ</CardTitle>
+                <CardTitle className="text-xl">Sổ địa chỉ</CardTitle>
                 <CardDescription>Quản lý địa chỉ nhận hàng của bạn.</CardDescription>
               </div>
               <Button variant="outline">
@@ -215,37 +217,73 @@ export default function ProfilePage() {
 
         <TabsContent value="preferences" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Tùy chọn ẩm thực</CardTitle>
-              <CardDescription>
-                Giúp chúng tôi hiểu rõ hơn về khẩu vị của bạn để đưa ra những gợi ý tốt nhất.
-              </CardDescription>
+            <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle className="text-xl">Tùy chọn ẩm thực</CardTitle>
+                <CardDescription>
+                  Giúp chúng tôi hiểu rõ hơn về khẩu vị của bạn để đưa ra những gợi ý tốt nhất.
+                </CardDescription>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm kiếm sở thích..."
+                  className="w-full pl-8 md:w-[250px]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {mockCategories.map((category) => (
-                <div key={category.id}>
-                  <Label className="text-base font-medium">{category.name}</Label>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {mockTags
-                      .filter((tag) => tag.categoryId === category.id)
-                      .map((tag) => {
-                        const isSelected = user.bias.some(
-                          (b: Bias) => b.tagId === tag.id && b.score > 0,
+              {mockCategories
+                .filter((category) =>
+                  mockTags.some(
+                    (tag) =>
+                      tag.categoryId === category.id &&
+                      tag.name.toLowerCase().includes(searchTerm.toLowerCase()),
+                  ),
+                )
+                .map((category) => (
+                  <div key={category.id}>
+                    <Label className="text-base font-medium">{category.name}</Label>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {mockTags
+                        .filter(
+                          (tag) =>
+                            tag.categoryId === category.id &&
+                            tag.name.toLowerCase().includes(searchTerm.toLowerCase()),
                         )
-                        return (
-                          <Button
-                            key={tag.id}
-                            variant={isSelected ? "secondary" : "outline"}
-                            size="sm"
-                            className="rounded-full"
-                          >
-                            {tag.name}
-                          </Button>
-                        )
-                      })}
+                        .map((tag) => {
+                          const userBias = user.bias.find((b: Bias) => b.tagId === tag.id)
+                          const score = userBias ? userBias.score : 3 // Default score 3 for unselected
+                          const getFillPercentage = (score: number): number => {
+                            const scoreMap: { [key: number]: number } = {
+                              1: 0,
+                              2: 25,
+                              3: 50,
+                              4: 75,
+                              5: 100,
+                            }
+                            return scoreMap[score] ?? 50
+                          }
+                          const fillPercentage = getFillPercentage(score)
+
+                          return (
+                            <div
+                              key={tag.id}
+                              className="relative inline-flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-accent"
+                            >
+                              <div
+                                className="absolute left-0 top-0 h-full bg-secondary"
+                                style={{ width: `${fillPercentage}%` }}
+                              />
+                              <span className="relative z-10">{tag.name}</span>
+                            </div>
+                          )
+                        })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
               <Button>Lưu tùy chọn</Button>
