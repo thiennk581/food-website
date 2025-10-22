@@ -1,3 +1,4 @@
+// TODO: Lưu các thay đổi rating của tag vào backend
 "use client"
 
 import { useState } from "react"
@@ -16,6 +17,7 @@ import {
   CheckCircle2,
   XCircle,
   Search,
+  Star,
 } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -30,6 +32,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
 import { mockUsers, mockCategories, mockTags } from "@/lib/mock-data" // Assuming these are available
 import { cn } from "@/lib/utils"
@@ -55,6 +58,28 @@ export default function ProfilePage() {
     user.birthdate ? new Date(user.birthdate) : undefined,
   )
   const [searchTerm, setSearchTerm] = useState("")
+  const { toast } = useToast()
+
+  const handleScoreChange = (tagId: string, newScore: number) => {
+    setUser((currentUser) => {
+      const newBias = [...currentUser.bias]
+      const biasIndex = newBias.findIndex((b) => b.tagId === tagId)
+
+      if (biasIndex > -1) {
+        // Update existing bias
+        newBias[biasIndex] = { ...newBias[biasIndex], score: newScore }
+      } else {
+        // Add new bias if it doesn't exist
+        newBias.push({
+          id: `bias-${Date.now()}-${tagId}`, // mock id
+          userId: currentUser.id,
+          tagId: tagId,
+          score: newScore,
+        })
+      }
+      return { ...currentUser, bias: newBias }
+    })
+  }
 
   // Mock function to get tag name
   const getTagName = (tagId: string) => mockTags.find((t) => t.id === tagId)?.name || "Unknown Tag"
@@ -269,16 +294,33 @@ export default function ProfilePage() {
                           const fillPercentage = getFillPercentage(score)
 
                           return (
-                            <div
-                              key={tag.id}
-                              className="relative inline-flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-accent"
-                            >
-                              <div
-                                className="absolute left-0 top-0 h-full bg-secondary"
-                                style={{ width: `${fillPercentage}%` }}
-                              />
-                              <span className="relative z-10">{tag.name}</span>
-                            </div>
+                            <Popover key={tag.id}>
+                              <PopoverTrigger asChild>
+                                <div className="relative inline-flex cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border px-3 py-1 text-sm font-medium transition-colors hover:bg-accent">
+                                  <div
+                                    className="absolute left-0 top-0 h-full bg-secondary"
+                                    style={{ width: `${fillPercentage}%` }}
+                                  />
+                                  <span className="relative z-10">{tag.name}</span>
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-2">
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                      key={star}
+                                      className={cn(
+                                        "h-6 w-6 cursor-pointer transition-colors",
+                                        score >= star
+                                          ? "fill-yellow-400 text-yellow-400"
+                                          : "text-gray-300",
+                                      )}
+                                      onClick={() => handleScoreChange(tag.id, star)}
+                                    />
+                                  ))}
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           )
                         })}
                     </div>
@@ -286,7 +328,21 @@ export default function ProfilePage() {
                 ))}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button>Lưu tùy chọn</Button>
+              <Button
+                onClick={() => {
+                  toast({
+                    variant: "success",
+                    title: (
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <span className="font-medium">Thay đổi khẩu vị thành công!</span>
+                      </div>
+                    ),
+                  })
+                }}
+              >
+                Lưu tùy chọn
+              </Button>
             </CardFooter>
           </Card>
         </TabsContent>

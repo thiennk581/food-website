@@ -1134,6 +1134,14 @@ export const mockTags: Tag[] = [
   { id: "tag_2_4", name: "Hải Sản", categoryId: "cat_2" }, // Gồm Tôm, Cá...
   { id: "tag_2_5", name: "Rau Củ", categoryId: "cat_2" },
   { id: "tag_2_6", name: "Bánh Mì/Bún/Phở", categoryId: "cat_2" }, // Gồm Phở, Bánh Mì...
+  { id: "tag_2_7", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_8", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_9", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_10", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_11", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_12", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_13", name: "Thịt Bò", categoryId: "cat_2" },
+  { id: "tag_2_14", name: "Thịt Bò", categoryId: "cat_2" },
 
   // Category 3: Phương Pháp Chế Biến
   { id: "tag_3_1", name: "Chiên", categoryId: "cat_3" },
