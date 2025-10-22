@@ -1,4 +1,6 @@
 // TODO: Lưu các thay đổi rating của tag vào backend
+// TODO: xử lý trường hợp xóa/sửa địa chỉ mặc định
+// thay đổi mật khẩu, thiết kế lại giao diện màu sắc
 "use client"
 
 import { useState } from "react"
@@ -18,6 +20,7 @@ import {
   XCircle,
   Search,
   Star,
+  KeyRound,
 } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -46,6 +49,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
 import { mockUsers, mockCategories, mockTags } from "@/lib/mock-data" // Assuming these are available
 import { AddressDialog } from "@/components/address-dialog"
+import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { cn } from "@/lib/utils"
 import type { Address, Bias } from "@/types"
 
@@ -70,10 +74,15 @@ export default function ProfilePage() {
   )
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
+  const [profileData, setProfileData] = useState({
+    name: user.name,
+    phone: user.phone,
+  })
   const [isAddressDialogOpen, setAddressDialogOpen] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addressToDelete, setAddressToDelete] = useState<Address | null>(null)
+  const [isPasswordDialogOpen, setPasswordDialogOpen] = useState(false)
 
   const handleScoreChange = (tagId: string, newScore: number) => {
     setUser((currentUser) => {
@@ -155,6 +164,59 @@ export default function ProfilePage() {
   // Mock function to get tag name
   const getTagName = (tagId: string) => mockTags.find((t) => t.id === tagId)?.name || "Unknown Tag"
 
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProfileData({ ...profileData, [e.target.name]: e.target.value })
+  }
+
+  const handleProfileSave = () => {
+    const { name, phone } = profileData
+    if (!name.trim() || !phone.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng điền đầy đủ họ tên và số điện thoại.",
+      })
+      return
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Số điện thoại phải có đúng 10 chữ số.",
+      })
+      return
+    }
+
+    const oneYearAgo = new Date()
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 10)
+
+    if (birthdate && birthdate > oneYearAgo) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Ngày sinh không hợp lệ. Bạn phải lớn hơn 10 tuổi.",
+      })
+      return
+    }
+
+    // Mock saving data
+    setUser((currentUser) => ({
+      ...currentUser,
+      ...profileData,
+      birthdate: birthdate ? birthdate.toISOString() : currentUser.birthdate,
+    }))
+    toast({
+                    variant: "success",
+                    title: (
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <span className="font-medium">Đã cập nhật thông tin thành công!</span>
+                      </div>
+                    ),
+                  })
+  }
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
       <div className="mb-8 flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
@@ -202,19 +264,25 @@ export default function ProfilePage() {
 
         <TabsContent value="profile" className="mt-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Thông tin cá nhân</CardTitle>
-              <CardDescription>Quản lý thông tin cá nhân của bạn.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl">Thông tin cá nhân</CardTitle>
+                <CardDescription>Quản lý thông tin cá nhân của bạn.</CardDescription>
+              </div>
+              <Button variant="outline" onClick={() => setPasswordDialogOpen(true)}>
+                <KeyRound className="mr-2 h-4 w-4" />
+                Đổi mật khẩu
+              </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Họ và tên</Label>
-                  <Input id="name" defaultValue={user.name} />
+                  <Input id="name" name="name" value={profileData.name} onChange={handleProfileChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input id="phone" defaultValue={user.phone} />
+                  <Input id="phone" name="phone" value={profileData.phone} onChange={handleProfileChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -268,7 +336,7 @@ export default function ProfilePage() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button>Lưu thay đổi</Button>
+              <Button onClick={handleProfileSave}>Lưu thay đổi</Button>
             </CardFooter>
           </Card>
         </TabsContent>
@@ -466,6 +534,8 @@ export default function ProfilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ChangePasswordDialog open={isPasswordDialogOpen} onOpenChange={setPasswordDialogOpen} />
     </div>
   )
 }
