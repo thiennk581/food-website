@@ -29,12 +29,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
 import { mockUsers, mockCategories, mockTags } from "@/lib/mock-data" // Assuming these are available
+import { AddressDialog } from "@/components/address-dialog"
 import { cn } from "@/lib/utils"
 import type { Address, Bias } from "@/types"
 
@@ -59,6 +70,10 @@ export default function ProfilePage() {
   )
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
+  const [isAddressDialogOpen, setAddressDialogOpen] = useState(false)
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [addressToDelete, setAddressToDelete] = useState<Address | null>(null)
 
   const handleScoreChange = (tagId: string, newScore: number) => {
     setUser((currentUser) => {
@@ -79,6 +94,62 @@ export default function ProfilePage() {
       }
       return { ...currentUser, bias: newBias }
     })
+  }
+
+  const handleSaveAddress = (addressData: Omit<Address, "id" | "userId"> & { id?: string }) => {
+    setUser((currentUser) => {
+      let newAddresses = [...currentUser.address]
+
+      // If new address is set to default, unset other defaults
+      if (addressData.isDefault) {
+        newAddresses = newAddresses.map((addr) => ({ ...addr, isDefault: false }))
+      }
+
+      if (addressData.id) {
+        // Editing existing address
+        newAddresses = newAddresses.map((addr) =>
+          addr.id === addressData.id ? { ...addr, ...addressData } : addr,
+        )
+      } else {
+        // Adding new address
+        const newAddress: Address = {
+          ...addressData,
+          id: `addr-${Date.now()}`, // mock id
+          userId: currentUser.id,
+        }
+        newAddresses.push(newAddress)
+      }
+
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã {addressData.id ? "cập nhật" : "thêm"} địa chỉ thành công!</span>
+          </div>
+        ),
+      })
+
+      return { ...currentUser, address: newAddresses }
+    })
+    setAddressDialogOpen(false)
+  }
+
+  const handleDeleteAddress = (addressId: string) => {
+    setUser((currentUser) => {
+      const newAddresses = currentUser.address.filter((addr) => addr.id !== addressId)
+      return { ...currentUser, address: newAddresses }
+    })
+    toast({
+      variant: "success",
+      title: (
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <span className="font-medium">Đã xóa địa chỉ thành công!</span>
+        </div>
+      ),
+    })
+    setDeleteDialogOpen(false)
   }
 
   // Mock function to get tag name
@@ -209,7 +280,13 @@ export default function ProfilePage() {
                 <CardTitle className="text-xl">Sổ địa chỉ</CardTitle>
                 <CardDescription>Quản lý địa chỉ nhận hàng của bạn.</CardDescription>
               </div>
-              <Button variant="outline">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedAddress(null)
+                  setAddressDialogOpen(true)
+                }}
+              >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Thêm địa chỉ mới
               </Button>
@@ -227,10 +304,27 @@ export default function ProfilePage() {
                         Mặc định
                       </Badge>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedAddress(addr)
+                        setAddressDialogOpen(true)
+                      }}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => {
+                        setAddressToDelete(addr)
+                        setDeleteDialogOpen(true)
+                      }}
+                      disabled={addr.isDefault}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -335,7 +429,7 @@ export default function ProfilePage() {
                     title: (
                       <div className="flex items-center gap-3">
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        <span className="font-medium">Thay đổi khẩu vị thành công!</span>
+                        <span className="font-medium">Đã cập nhật khẩu vị thành công!</span>
                       </div>
                     ),
                   })
@@ -347,6 +441,31 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AddressDialog
+        open={isAddressDialogOpen}
+        onOpenChange={setAddressDialogOpen}
+        address={selectedAddress}
+        onSave={handleSaveAddress}
+      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Địa chỉ này sẽ bị xóa vĩnh viễn khỏi sổ địa chỉ của
+              bạn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={() => addressToDelete && handleDeleteAddress(addressToDelete.id)}>
+              Tiếp tục
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
