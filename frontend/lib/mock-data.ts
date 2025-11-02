@@ -1210,10 +1210,10 @@ export const mockBiases: Bias[] = [
 ];
 
 // 3. Dữ liệu User
-export const mockUsers: User = 
+export const mockUsers: User[] = [
   {
-    id: USER_ID,
-    email: "nguyenvana.user@fakefoodapp.com",
+    id: "user_1",
+    email: "nguyenvanb@fakefoodapp.com",
     name: "Nguyễn Văn B",
     phone: "0901234567",
     gender: "male",
@@ -1221,10 +1221,62 @@ export const mockUsers: User =
     role: "user",
     createdAt: "2024-01-10T08:00:00Z",
     isActive: true,
-    // Liên kết Biases và Addresses đã tạo ở trên
     bias: mockBiases,
     address: mockAddresses,
-  };
+  },
+  {
+    id: "user_2",
+    email: "lethutrang@fakefoodapp.com",
+    name: "Lê Thị Thu Trang",
+    phone: "0912345678",
+    gender: "female",
+    birthdate: "1995-11-20",
+    role: "user",
+    createdAt: "2024-02-22T14:30:00Z",
+    isActive: true,
+    bias: mockBiases,
+address: mockAddresses,
+  },
+  {
+    id: "user_3",
+    email: "phamminhduc.admin@fakefoodapp.com",
+    name: "Phạm Minh Đức",
+    phone: "0987654321",
+    gender: "male",
+    birthdate: "1988-01-30",
+    role: "admin", // Người dùng này có vai trò admin
+    createdAt: "2024-01-01T09:00:00Z",
+    isActive: true,
+    bias: mockBiases,
+address: mockAddresses,
+  },
+  {
+    id: "user_4",
+    email: "vungochaofficial@fakefoodapp.com",
+    name: "Vũ Ngọc Hà",
+    phone: "0334455667",
+    gender: "female",
+    birthdate: "2001-07-12",
+    role: "user",
+    createdAt: "2024-03-15T11:20:00Z",
+    isActive: false, // Người dùng này không hoạt động
+    bias: mockBiases,
+address: mockAddresses,
+  },
+  {
+    id: "user_5",
+    email: "dinh.tuan.kiet@fakefoodapp.com",
+    name: "Đinh Tuấn Kiệt",
+    phone: "0778899001",
+    gender: "male",
+    birthdate: "1998-09-05",
+    role: "user",
+    createdAt: "2024-04-01T19:00:00Z",
+    isActive: true,
+    bias: mockBiases,
+address: mockAddresses,
+  },
+];
 
 export const mockTopSellingData: TopSelling[] = [
   {

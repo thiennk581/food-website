@@ -55,12 +55,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const navItems = [
-    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "#", label: "Home", icon: Home },
-    { href: "#", label: "Report", icon: BarChart3 },
-    { href: "#", label: "Orders", icon: Package },
-    { href: "#", label: "Menu", icon: UtensilsCrossed },
-    { href: "/admin/users", label: "Customers", icon: Users },
+    { href: "/admin/dashboard", label: "Trang chủ", icon: LayoutDashboard },
+    { href: "/admin/users", label: "Người dùng", icon: Users },
+    { href: "/admin/foods", label: "Món ăn", icon: UtensilsCrossed },
+    { href: "/admin/restaurants", label: "Quán ăn", icon: Home },
+    { href: "/admin/reviews", label: "Đánh giá", icon: BarChart3 },
   ]
 
   const bottomNavItems = [
@@ -95,13 +94,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium transition-colors ${
+                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-base font-medium transition-colors ${
                     pathname === item.href
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary/10 text-primary ring-1 ring-primary/20"
                       : "text-muted-foreground hover:bg-gray-100 hover:text-foreground dark:hover:bg-gray-800"
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className={`h-5 w-5 ${pathname === item.href ? "text-primary" : ""}`} />
                   {item.label}
                 </Link>
               </li>
@@ -135,7 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-border bg-background px-4 md:px-8">
+        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-8">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -147,7 +146,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Button>
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search..." className="w-full rounded-lg bg-gray-100 pl-10 dark:bg-gray-800" />
+              <Input placeholder="Tìm kiếm..." className="w-full rounded-2xl bg-gray-100 pl-10 dark:bg-gray-800" />
             </div>
           </div>
           <div className="flex items-center gap-4">
