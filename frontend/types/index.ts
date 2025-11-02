@@ -17,6 +17,7 @@ export interface User {
   phone: string
   gender: "male" | "female" | "other"
   birthdate: string
+  avatarUrl?: string
   role: "user" | "admin"
   createdAt: string
   isActive: boolean

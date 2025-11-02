@@ -6,13 +6,36 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { authService } from "@/lib/auth"
-import { LayoutDashboard, Users, UtensilsCrossed, Store, Package, BarChart3, LogOut, Menu } from "lucide-react"
+import {
+  LayoutDashboard,
+  Users,
+  UtensilsCrossed,
+  Package,
+  BarChart3,
+  LogOut,
+  Menu,
+  Settings,
+  Bell,
+  Search,
+  Home,
+} from "lucide-react"
+import { User } from "@/types"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [user, setUser] = useState(authService.getCurrentUser())
+  const [user, setUser] = useState<User | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -20,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!currentUser || currentUser.role !== "admin") {
       router.push("/login")
     } else {
-      setUser(currentUser)
+      setUser(currentUser as User)
     }
   }, [router])
 
@@ -33,89 +56,132 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/users", label: "Người dùng", icon: Users },
-    { href: "/admin/dishes", label: "Món ăn", icon: UtensilsCrossed },
-    { href: "/admin/restaurants", label: "Nhà hàng", icon: Store },
-    { href: "/admin/orders", label: "Đơn hàng", icon: Package },
-    { href: "/admin/reports", label: "Báo cáo", icon: BarChart3 },
+    { href: "#", label: "Home", icon: Home },
+    { href: "#", label: "Report", icon: BarChart3 },
+    { href: "#", label: "Orders", icon: Package },
+    { href: "#", label: "Menu", icon: UtensilsCrossed },
+    { href: "/admin/users", label: "Customers", icon: Users },
   ]
 
+  const bottomNavItems = [
+    { href: "#", label: "Setting", icon: Settings },
+    { href: "#", label: "Log out", icon: LogOut, onClick: handleLogout },
+  ]
+
+  if (!user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        {/* You can add a loading spinner here */}
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen w-full bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform border-r border-border bg-card transition-transform duration-200 ease-in-out lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 transform flex-col border-r border-border bg-background transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-16 items-center border-b border-border px-6">
+        <div className="flex h-20 items-center gap-2 border-b border-border px-6">
           <Logo />
+          <span className="text-xl font-bold">Foodly.io</span>
         </div>
-        <nav className="flex flex-col gap-1 p-4">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
+            {navItems.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium transition-colors ${
+                    pathname === item.href
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-gray-100 hover:text-foreground dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
-        <div className="absolute bottom-0 w-full border-t border-border p-4">
-          <div className="px-3">
-            <p className="text-sm font-medium text-card-foreground">{user?.name}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
+        <div className="mt-auto p-4">
+          <ul className="space-y-2">
+            {bottomNavItems.map((item) => (
+              <li key={item.label}>
+                <button
+                  onClick={item.onClick}
+                  className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground dark:hover:bg-gray-800"
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       </aside>
 
       {/* Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-1">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4">
-          <div className="flex items-center gap-3">
+      <div className="flex flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-border bg-background px-4 md:px-8">
+          <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
               className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-6 w-6" />
             </Button>
-            <span className="ml-1 font-semibold lg:ml-0">Admin Panel</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-sm text-muted-foreground sm:flex sm:flex-col sm:items-end">
-              <span>{user?.name}</span>
-              <span className="text-xs">{user?.email}</span>
+            <div className="relative hidden md:block">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search..." className="w-full rounded-lg bg-gray-100 pl-10 dark:bg-gray-800" />
             </div>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Đăng xuất</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <Bell className="h-6 w-6" />
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user.avatarUrl || "/placeholder-user.jpg"} alt={user.name} />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="hidden text-left lg:block">
+                    <p className="text-sm font-semibold">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">Visual Designer</p>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   )
