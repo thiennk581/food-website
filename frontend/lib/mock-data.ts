@@ -1,5 +1,5 @@
 import type { Restaurant, Dish, Order, Review, DashboardStats, RevenueData, Category, Tag, User, Address, Bias } from "@/types"
-
+import type { TopSelling } from "@/types"
 const USER_ID = "user_1"
 
 
@@ -1225,3 +1225,30 @@ export const mockUsers: User =
     bias: mockBiases,
     address: mockAddresses,
   };
+
+export const mockTopSellingData: TopSelling[] = [
+  {
+    dishId: "dish_1", 
+    quantitySold: 215,
+  },
+  {
+    dishId: "dish_2", 
+    quantitySold: 189,
+  },
+  {
+    dishId: "dish_3", 
+    quantitySold: 172,
+  },
+  {
+    dishId: "dish_4", 
+    quantitySold: 158,
+  },
+  {
+    dishId: "dish_5", 
+    quantitySold: 141,
+  },
+  {
+    dishId: "dish_6", 
+    quantitySold: 130,    
+  },
+]

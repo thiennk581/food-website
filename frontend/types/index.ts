@@ -136,3 +136,8 @@ export interface RevenueData {
   revenue: number
   orders: number
 }
+
+export interface TopSelling {
+  dishId: string
+  quantitySold: number
+}

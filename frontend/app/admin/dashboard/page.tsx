@@ -25,7 +25,10 @@ import {
   Area,
 } from "recharts"
 import Image from "next/image"
-import { Dish } from "@/types"
+import { Dish, Restaurant, TopSelling } from "@/types"
+import { mockDishes, mockRestaurants, mockTopSellingData } from "@/lib/mock-data"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 
 const summaryData = [
   { name: "Sunday", Earning: 2000 },
@@ -37,68 +40,21 @@ const summaryData = [
   { name: "Saturday", Earning: 4200 },
 ]
 
-const topSellingItems: (Omit<Dish, "price"> & { price: number; restaurantName: string })[] = [
-  {
-    id: "1",
-    restaurantId: "1",
-    name: "Pizza Margherita",
-    restaurantName: "Deef Cafe",
-    description: "Classic pizza with tomato, mozzarella, and basil.",
-    price: 34.24,
-    image: "/placeholder.jpg",
-    category: "Pizza",
-    rating: 4.5,
-    totalReviews: 120,
-    isAvailable: true,
-    spicyLevel: "none",
-    tags: ["vegetarian"],
-  },
-  {
-    id: "2",
-    restaurantId: "2",
-    name: "Classic Caesar Salad",
-    restaurantName: "Deef Cafe",
-    description: "Crisp romaine lettuce with Caesar dressing, croutons, and Parmesan cheese.",
-    price: 28.21,
-    image: "/placeholder.jpg",
-    category: "Salad",
-    rating: 4.2,
-    totalReviews: 85,
-    isAvailable: true,
-    spicyLevel: "none",
-    tags: ["healthy"],
-  },
-  {
-    id: "3",
-    restaurantId: "1",
-    name: "Egg Sandwich",
-    restaurantName: "Deef Cafe",
-    description: "A simple yet delicious egg sandwich.",
-    price: 30.15,
-    image: "/placeholder.jpg",
-    category: "Sandwich",
-    rating: 4.0,
-    totalReviews: 60,
-    isAvailable: true,
-    spicyLevel: "none",
-    tags: ["breakfast"],
-  },
-  {
-    id: "4",
-    restaurantId: "3",
-    name: "Muesli with Mango",
-    restaurantName: "Deef Cafe",
-    description: "Healthy muesli with fresh mango.",
-    price: 40.24,
-    image: "/placeholder.jpg",
-    category: "Breakfast",
-    rating: 4.8,
-    totalReviews: 95,
-    isAvailable: true,
-    spicyLevel: "none",
-    tags: ["healthy", "breakfast"],
-  },
-]
+
+const topSellingItems = mockTopSellingData
+  .map((item: TopSelling) => {
+    const dish = mockDishes.find((d) => d.id === item.dishId)
+    if (!dish) {
+      return null
+    }
+    const restaurant = mockRestaurants.find((r) => r.id === dish.restaurantId)
+    return {
+      ...dish,
+      restaurantName: restaurant?.name || "N/A",
+      quantitySold: item.quantitySold,
+    }
+  })
+  .filter((item): item is Dish & { restaurantName: string; quantitySold: number } => item !== null)
 
 export default function DashboardPage() {
   return (
@@ -159,7 +115,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-13 lg:grid-cols-3 py-4">
         {/* Summary Chart */}
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -202,35 +158,48 @@ export default function DashboardPage() {
         </Card>
 
         {/* Top Selling Items */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Top Selling Items</CardTitle>
-            <Button variant="link" className="p-0">
+        <Card className="rounded-3xl">
+          <CardHeader className="flex flex-row items-center justify-between px-7 pt-2 pb-0">
+            <CardTitle className="text-xl font-bold">Best Sellers</CardTitle>
+            <Button variant="link" className="text-base">
               View all
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topSellingItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      width={48}
-                      height={48}
-                      className="rounded-md object-cover"
-                    />
-                    <div>
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.restaurantName}</p>
+          <CardContent className="px-3">
+            <ScrollArea className="h-[350px]">
+              <div className="flex flex-col">
+                {topSellingItems.map((item, index) => (
+                  <div key={item.id}>
+                    <div className="flex items-center justify-between pb-5 px-7">
+                      <div className="flex items-center space-x-4">
+                        <Image
+                          src={item.image!}
+                          alt={item.name!}
+                          width={56}
+                          height={56}
+                          className="rounded-lg object-cover"
+                        />
+                        <div className="max-w-[150px]">
+                          <p className="truncate font-semibold text-base">{item.name}</p>
+                          <p className="truncate text-sm text-muted-foreground">{item.restaurantName}</p>
+                        </div>
+                      </div>
+                      <div className="w-16 text-right">
+                        <p className="font-bold text-lg">{item.quantitySold}</p>
+                      </div>
                     </div>
+
+                    {/* --- đường kẻ giữa các item --- */}
+                    {index < topSellingItems.length - 1 && (
+                        <div className="border-b border-gray-200 dark:border-gray-700 mx-7 mb-5"></div>
+                    )}
                   </div>
-                  <p className="font-semibold">${item.price.toFixed(2)}</p>
-                </div>
-              ))}
-            </div>
+                  
+                ))}
+              </div>
+            </ScrollArea>
           </CardContent>
+
         </Card>
       </div>
     </div>

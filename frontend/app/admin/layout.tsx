@@ -87,7 +87,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         <div className="flex h-20 items-center gap-2 border-b border-border px-6">
           <Logo />
-          <span className="text-xl font-bold">Foodly.io</span>
         </div>
         <nav className="flex-1 p-4">
           <ul className="space-y-2">
