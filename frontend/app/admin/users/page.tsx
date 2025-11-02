@@ -16,6 +16,8 @@ import { mockUsers as usersFromMock } from "@/lib/mock-data"
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   // Bỏ filter, chỉ giữ search
+  const [page, setPage] = useState(1)
+  const pageSize = 10
 
   // Dữ liệu mock lấy từ module
   const mockUsers: User[] = usersFromMock
@@ -27,6 +29,12 @@ export default function UsersPage() {
       return matchesQuery
     })
   }, [searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const pagedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredUsers.slice(start, start + pageSize)
+  }, [filteredUsers, page])
 
   const stats = useMemo(() => {
     const total = mockUsers.length
@@ -43,14 +51,14 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6 px-15 py-10 bg-background flex-1">
+    <div className="space-y-8 px-15 py-10 bg-background flex-1">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Quản lý người dùng</h1>
           <p className="text-muted-foreground">Theo dõi tài khoản, vai trò và trạng thái hoạt động</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setSearchQuery("") }}>
+          <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setPage(1) }}>
             <RefreshCw className="mr-2 h-4 w-4" />Đặt lại
           </Button>
           <Button>
@@ -86,12 +94,11 @@ export default function UsersPage() {
         </Card>
       </div>
 
-      <Card className="border-muted/40">
-        <CardHeader className="pb-4">
+      <Card className="border-muted/40 px-3">
+        <CardHeader className="pb-0">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold tracking-tight">Danh sách người dùng</CardTitle>
-              <p className="text-sm text-muted-foreground">Lọc theo vai trò, trạng thái hoặc tìm kiếm theo tên/email</p>
+              <CardTitle className="text-2xl font-semibold tracking-tight">Danh sách người dùng</CardTitle>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full sm:w-64">
@@ -99,7 +106,7 @@ export default function UsersPage() {
                 <Input
                   placeholder="Tìm tên hoặc email..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
                   className="pl-10 h-10"
                 />
               </div>
@@ -108,7 +115,7 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="overflow-x-auto rounded-lg border">
-            <Table>
+            <Table className="[&_th]:py-4 [&_td]:py-3 [&_th]:px-6 [&_td]:px-6">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[28%] min-w-[200px]">Tên user</TableHead>
@@ -127,8 +134,8 @@ export default function UsersPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
+                  pagedUsers.map((user) => (
+                  <TableRow className="hover:bg-muted/40" key={user.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         <span className="text-sm sm:text-base font-semibold leading-tight">{user.name}</span>
@@ -168,7 +175,6 @@ export default function UsersPage() {
                           <DropdownMenuItem>
                             {user.isActive ? (
                               <>
-                                <Lock className="mr-2 h-4 w-4" />
                                 Khóa tài khoản
                               </>
                             ) : (
@@ -188,6 +194,24 @@ export default function UsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Hiển thị {(filteredUsers.length === 0) ? 0 : (page - 1) * pageSize + 1}
+          –{Math.min(page * pageSize, filteredUsers.length)} trong tổng {filteredUsers.length}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Trang trước
+          </Button>
+          <div className="text-sm tabular-nums">
+            {page} / {totalPages}
+          </div>
+          <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+            Trang sau
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
