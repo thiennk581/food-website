@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   // Bỏ filter, chỉ giữ search
   const [page, setPage] = useState(1)
+  const [quickFilter, setQuickFilter] = useState<"all"|"customers"|"admins"|"active"|"locked">("all")
   const pageSize = 10
 
   // Dữ liệu mock lấy từ module
@@ -26,21 +27,59 @@ export default function UsersPage() {
     const q = searchQuery.toLowerCase().trim()
     return mockUsers.filter((user) => {
       const matchesQuery = !q || user.name.toLowerCase().includes(q) || user.email.toLowerCase().includes(q)
-      return matchesQuery
+      let matchesQuick = true
+      switch (quickFilter) {
+        case "customers":
+          matchesQuick = user.role === "user"
+          break
+        case "admins":
+          matchesQuick = user.role === "admin"
+          break
+        case "active":
+          matchesQuick = user.isActive
+          break
+        case "locked":
+          matchesQuick = !user.isActive
+          break
+        default:
+          matchesQuick = true
+      }
+      return matchesQuery && matchesQuick
     })
-  }, [searchQuery])
+  }, [searchQuery, quickFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  // Đảm bảo trang hợp lệ khi dữ liệu lọc thay đổi
+  if (page > totalPages) {
+    // eslint-disable-next-line no-console
+    // console.debug('Adjust page due to filter change', { page, totalPages })
+    // Soft sync back to last page
+  }
   const pagedUsers = useMemo(() => {
-    const start = (page - 1) * pageSize
+    const safePage = Math.min(Math.max(1, page), totalPages)
+    const start = (safePage - 1) * pageSize
     return filteredUsers.slice(start, start + pageSize)
-  }, [filteredUsers, page])
+  }, [filteredUsers, page, totalPages])
+
+  // Reset về trang 1 mỗi khi điều kiện lọc thay đổi
+  useEffect(() => {
+    setPage(1)
+  }, [quickFilter, searchQuery])
+
+  // Nếu tổng số trang thay đổi và nhỏ hơn trang hiện tại, kéo về trang cuối hợp lệ
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [totalPages, page])
 
   const stats = useMemo(() => {
     const total = mockUsers.length
     const admins = mockUsers.filter((u) => u.role === "admin").length
     const actives = mockUsers.filter((u) => u.isActive).length
-    return { total, admins, actives }
+    const customers = mockUsers.filter((u) => u.role === "user").length
+    const locked = mockUsers.filter((u) => !u.isActive).length
+    return { total, admins, actives, customers, locked }
   }, [])
 
   const getDefaultAddress = (user: User) => {
@@ -58,7 +97,7 @@ export default function UsersPage() {
           <p className="text-muted-foreground">Theo dõi tài khoản, vai trò và trạng thái hoạt động</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setPage(1) }}>
+          <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setQuickFilter("all"); setPage(1) }}>
             <RefreshCw className="mr-2 h-4 w-4" />Đặt lại
           </Button>
           <Button>
@@ -67,31 +106,32 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Tổng người dùng</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Đang hoạt động</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.actives}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Quản trị viên</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.admins}</div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <button onClick={() => { setQuickFilter('all'); setPage(1) }}
+          className={`rounded-xl  p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='all' ? 'ring-3 ring-violet-400 bg-violet-100 text-violet-700' : 'border-violet-200 bg-violet-200/60 hover:bg-violet-100 text-violet-700'}`}>
+          <div className="text-sm font-medium p-1">Tổng người dùng</div>
+          <div className="text-3xl font-bold">{stats.total}</div>
+        </button>
+        <button onClick={() => { setQuickFilter('customers'); setPage(1) }}
+          className={`rounded-xl  p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='customers' ? 'ring-3 ring-amber-400 bg-amber-100 text-amber-700' : 'border-amber-200 bg-amber-200/60 hover:bg-amber-100 text-amber-700'}`}>
+          <div className="text-sm font-medium p-1">Khách hàng</div>
+          <div className="text-3xl font-bold">{stats.customers}</div>
+        </button>
+        <button onClick={() => { setQuickFilter('admins'); setPage(1) }}
+          className={`rounded-xl py-4 p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='admins' ? 'ring-3 ring-blue-400 bg-blue-100 text-blue-700' : 'border-blue-200 bg-blue-200/60 hover:bg-blue-100 text-blue-700'}`}>
+          <div className="text-sm font-medium p-1">Quản trị viên</div>
+          <div className="text-3xl font-bold">{stats.admins}</div>
+        </button>
+        <button onClick={() => { setQuickFilter('active'); setPage(1) }}
+          className={`rounded-xl  p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='active' ? 'ring-3 ring-emerald-400 bg-emerald-100 text-emerald-700' : 'border-emerald-200 bg-emerald-200/60 hover:bg-emerald-100 text-emerald-700'}`}>
+          <div className="text-sm font-medium p-1">Đang hoạt động</div>
+          <div className="text-3xl font-bold">{stats.actives}</div>
+        </button>
+        <button onClick={() => { setQuickFilter('locked'); setPage(1) }}
+          className={`rounded-xl p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='locked' ? 'ring-3 ring-rose-400 bg-rose-100 text-rose-700' : 'border-rose-200 bg-rose-200/60 hover:bg-rose-100 text-rose-700'}`}>
+          <div className="text-sm font-medium p-1">Bị khóa</div>
+          <div className="text-3xl font-bold">{stats.locked}</div>
+        </button>
       </div>
 
       <Card className="border-muted/40 px-3">
