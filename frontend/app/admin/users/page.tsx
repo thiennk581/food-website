@@ -176,9 +176,9 @@ export default function UsersPage() {
                 ) : (
                   pagedUsers.map((user) => (
                   <TableRow className="hover:bg-muted/40" key={user.id}>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium max-w-[240px]">
                       <div className="flex items-center gap-3">
-                        <span className="text-sm sm:text-base font-semibold leading-tight">{user.name}</span>
+                        <span className="text-sm sm:text-base font-semibold leading-tight truncate" title={user.name}>{user.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="max-w-[260px] text-muted-foreground">

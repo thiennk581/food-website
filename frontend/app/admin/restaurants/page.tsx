@@ -80,9 +80,9 @@ export default function RestaurantsPage() {
                 ) : (
                   paged.map((r) => (
                     <TableRow className="hover:bg-muted/40" key={r.id}>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium max-w-[260px]">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm sm:text-base font-semibold leading-tight">{r.name}</span>
+                          <span className="text-sm sm:text-base font-semibold leading-tight truncate" title={r.name}>{r.name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="max-w-[360px]">
