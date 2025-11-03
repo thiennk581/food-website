@@ -1,3 +1,4 @@
+// TODO: tạm ngưng bán
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
@@ -6,14 +7,49 @@ import { Input } from "@/components/ui/input"
 // Removed card wrapper for simpler layout
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, Phone, MapPin, Plus } from "lucide-react"
+import { Search, MoreVertical, Phone, MapPin, Plus, CheckCircle2 } from "lucide-react"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { Textarea } from "@/components/ui/textarea"
 import type { Restaurant } from "@/types"
 import { mockRestaurants } from "@/lib/mock-data"
+import { useToast } from "@/hooks/use-toast"
 
 export default function RestaurantsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [page, setPage] = useState(1)
   const pageSize = 10
+  const [open, setOpen] = useState(false)
+  const { toast } = useToast()
+
+  type CreateRestaurantInput = {
+    name: string
+    address: string
+    phone: string
+  }
+
+  const form = useForm<CreateRestaurantInput>({
+    defaultValues: { name: "", address: "", phone: "" },
+    mode: "onTouched",
+  })
+
+  function onSubmit(values: CreateRestaurantInput) {
+    try {
+      // TODO: integrate API call to create restaurant
+      console.log("Create restaurant", values)
+      toast({ title: (
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <span className="font-medium">Quán ăn đã được thêm thành công!</span>
+        </div>
+      ) })
+      setOpen(false)
+      form.reset()
+    } catch (e) {
+      toast({ variant: "destructive", title: "Tạo thất bại", description: "Vui lòng thử lại sau." })
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -55,9 +91,76 @@ export default function RestaurantsPage() {
               className="pl-10 h-10"
             />
           </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />Thêm quán ăn
-          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />Thêm quán ăn
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Thêm quán ăn</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    rules={{ required: "Vui lòng nhập tên quán" }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tên quán ăn</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nhập tên quán" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    rules={{ required: "Vui lòng nhập địa chỉ" }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Địa chỉ</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành" rows={3} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    rules={{
+                      required: "Vui lòng nhập số điện thoại",
+                      pattern: {
+                        value: /^\+?\d{9,15}$/,
+                        message: "Số điện thoại không hợp lệ",
+                      },
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Số điện thoại</FormLabel>
+                        <FormControl>
+                          <Input placeholder="VD: 0901234567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                      Hủy
+                    </Button>
+                    <Button type="submit">Lưu</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="overflow-x-auto rounded-lg border">
           <Table className="[&_th]:py-4 [&_td]:py-3 [&_th]:px-6 [&_td]:px-6">
