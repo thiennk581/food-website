@@ -19,6 +19,7 @@ export default function FoodsPage() {
   const [maxPrice, setMaxPrice] = useState<string>("")
   const [status, setStatus] = useState<"all"|"available"|"unavailable">("all")
   const pageSize = 10
+  const [sortBy, setSortBy] = useState<"price_asc"|"price_desc"|"rating_asc"|"rating_desc">("price_asc")
 
   const dishes: Dish[] = mockDishes
 
@@ -42,11 +43,26 @@ export default function FoodsPage() {
   }, [searchQuery, dishes, minPrice, maxPrice, status])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const sorted = useMemo(() => {
+    const list = [...filtered]
+    switch (sortBy) {
+      case "price_desc":
+        list.sort((a,b)=> b.price - a.price); break
+      case "rating_asc":
+        list.sort((a,b)=> a.rating - b.rating); break
+      case "rating_desc":
+        list.sort((a,b)=> b.rating - a.rating); break
+      default:
+        list.sort((a,b)=> a.price - b.price)
+    }
+    return list
+  }, [filtered, sortBy])
+
   const paged = useMemo(() => {
     const safePage = Math.min(Math.max(1, page), totalPages)
     const start = (safePage - 1) * pageSize
-    return filtered.slice(start, start + pageSize)
-  }, [filtered, page, totalPages])
+    return sorted.slice(start, start + pageSize)
+  }, [sorted, page, totalPages])
 
   useEffect(() => { setPage(1) }, [searchQuery])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
@@ -61,39 +77,52 @@ export default function FoodsPage() {
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Tìm theo tên món hoặc quán..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
-            className="pl-10 h-10"
-          />
+        <div className="relative flex-1 sm:max-w-[22rem]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Tìm theo tên món hoặc quán..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+              className="pl-10 h-10"
+            />
         </div>
         <Button>
           <Plus className="mr-2 h-4 w-4" />Thêm món ăn
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">Mức giá</span>
+      <div className="flex flex-wrap items-end gap-4 justify-between">
+        <div className="flex items-end gap-6">
+          <span className="text-sm font-medium pb-2">Mức giá</span>
           <div className="flex items-center gap-2">
             <Input placeholder="Mức giá từ" value={minPrice} onChange={(e)=>setMinPrice(e.target.value)} className="w-40" inputMode="numeric"/>
             <span className="text-muted-foreground">-</span>
             <Input placeholder="Mức giá đến" value={maxPrice} onChange={(e)=>setMaxPrice(e.target.value)} className="w-40" inputMode="numeric"/>
           </div>
+          <div className="flex items-center gap-3 pl-6">
+            <span className="text-sm font-medium">Tình trạng</span>
+            <Select value={status} onValueChange={(v)=>setStatus(v as typeof status)}>
+              <SelectTrigger className="w-40 h-10">
+                <SelectValue placeholder="Chọn tình trạng" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="available">Đang bán</SelectItem>
+                <SelectItem value="unavailable">Tạm hết</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium">Tình trạng</span>
-          <Select value={status} onValueChange={(v)=>setStatus(v as typeof status)}>
-            <SelectTrigger className="w-40 h-10">
-              <SelectValue placeholder="Chọn tình trạng" />
+        <div className="ml-auto">
+          <Select value={sortBy} onValueChange={(v)=>{ setSortBy(v as typeof sortBy); setPage(1) }}>
+            <SelectTrigger className="h-10 w-31 justify-between">
+              <SelectValue placeholder="Sắp xếp" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="available">Đang bán</SelectItem>
-              <SelectItem value="unavailable">Tạm hết</SelectItem>
+              <SelectItem value="price_desc">Giá tiền ↓</SelectItem>
+              <SelectItem value="price_asc">Giá tiền ↑</SelectItem>
+              <SelectItem value="rating_desc">Đánh giá ↓</SelectItem>
+              <SelectItem value="rating_asc">Đánh giá ↑</SelectItem>
             </SelectContent>
           </Select>
         </div>
