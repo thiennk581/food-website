@@ -44,16 +44,9 @@ export interface Address {
 export interface Restaurant {
   id: string
   name: string
-  description: string
-  image: string
   address: string
   phone: string
-  rating: number
-  totalReviews: number
   isActive: boolean
-  openTime: string
-  closeTime: string
-  categories: string[]
 }
 
 // Dish Types
