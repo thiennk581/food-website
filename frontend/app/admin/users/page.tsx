@@ -90,7 +90,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-8 px-15 py-10 bg-background flex-1">
+    <div className="space-y-8 px-18 py-10 bg-background flex-1">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight">Quản lý người dùng</h1>
@@ -219,7 +219,6 @@ export default function UsersPage() {
                               </>
                             ) : (
                               <>
-                                <Unlock className="mr-2 h-4 w-4" />
                                 Mở khóa
                               </>
                             )}
