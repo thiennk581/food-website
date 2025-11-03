@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star } from "lucide-react"
+import { Star, RefreshCw } from "lucide-react"
 import { Search, MoreVertical, Plus } from "lucide-react"
 import type { Dish } from "@/types"
 import { mockDishes, mockRestaurants } from "@/lib/mock-data"
@@ -29,9 +29,8 @@ export default function FoodsPage() {
     const min = clean(minPrice) ? Number(clean(minPrice)) : undefined
     const max = clean(maxPrice) ? Number(clean(maxPrice)) : undefined
     return dishes.filter((d) => {
-      if (!q) return true
       const restaurant = mockRestaurants.find(r => r.id === d.restaurantId)
-      const matchesText = (
+      const matchesText = !q || (
         d.name.toLowerCase().includes(q) ||
         restaurant?.name.toLowerCase().includes(q) ||
         d.category.toLowerCase().includes(q)
@@ -76,7 +75,7 @@ export default function FoodsPage() {
         <div className="mx-auto mt-2 h-1 w-24 rounded bg-foreground/80" />
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 text-[15px] sm:text-base">
         <div className="relative flex-1 sm:max-w-[22rem]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -91,7 +90,7 @@ export default function FoodsPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4 justify-between">
+      <div className="flex flex-wrap items-end gap-4 justify-between text-[15px] sm:text-base">
         <div className="flex items-end gap-6">
           <span className="text-sm font-medium pb-2">Mức giá</span>
           <div className="flex items-center gap-2">
@@ -113,7 +112,7 @@ export default function FoodsPage() {
             </Select>
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Select value={sortBy} onValueChange={(v)=>{ setSortBy(v as typeof sortBy); setPage(1) }}>
             <SelectTrigger className="h-10 w-31 justify-between">
               <SelectValue placeholder="Sắp xếp" />
@@ -125,10 +124,13 @@ export default function FoodsPage() {
               <SelectItem value="rating_asc">Đánh giá ↑</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" size="icon" className="h-10 w-10" title="Đặt lại bộ lọc" onClick={() => { setStatus('all'); setMinPrice(''); setMaxPrice(''); setSearchQuery(''); setPage(1); setSortBy('price_asc') }}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border text-[15px] sm:text-base">
         <Table className="[&_th]:py-4 [&_td]:py-3 [&_th]:px-6 [&_td]:px-6">
           <TableHeader>
             <TableRow>
