@@ -55,10 +55,16 @@ export default function useLogin() {
         .json()
         .catch(() => "" as any);
 
-      // Kiểm tra nếu data là object thì mới đọc roleName
+      // Kiểm tra nếu data là object thì mới đọc roleName/email
+      let roleName: string | undefined;
+      let email: string | undefined;
       if (typeof data === "object" && data !== null) {
         if (data.roleName) {
+          roleName = data.roleName;
           localStorage.setItem("roleName", data.roleName);
+        }
+        if (data.email) {
+          email = data.email;
         }
       }
 
@@ -79,6 +85,23 @@ export default function useLogin() {
 
       localStorage.setItem("token", receivedToken);
       setToken(receivedToken);
+
+      // Demo compatibility: also set mock auth keys so layouts using lib/auth.ts work.
+      try {
+        const lowerRole = roleName?.toLowerCase() || "user";
+        const nameFromEmail = email ? email.split("@")[0] : "User";
+        const demoUser = {
+          id: `user_${Date.now()}`,
+          email: email ?? "user@example.com",
+          name: nameFromEmail,
+          phone: "",
+          role: lowerRole,
+          createdAt: new Date().toISOString(),
+          isActive: true,
+        };
+        localStorage.setItem("food_ordering_auth", "true");
+        localStorage.setItem("food_ordering_user", JSON.stringify(demoUser));
+      } catch {}
       return receivedToken;
     } catch (err: any) {
       setError(err?.message ?? "Login failed");
