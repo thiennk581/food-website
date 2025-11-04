@@ -8,9 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Star, RefreshCw } from "lucide-react"
-import { Search, MoreVertical, Plus } from "lucide-react"
+import { Search, MoreVertical, Plus, CheckCircle2 } from "lucide-react"
 import type { Dish } from "@/types"
 import { mockDishes, mockRestaurants } from "@/lib/mock-data"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { useForm } from "react-hook-form"
+import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
 export default function FoodsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -20,6 +27,47 @@ export default function FoodsPage() {
   const [status, setStatus] = useState<"all"|"available"|"unavailable">("all")
   const pageSize = 10
   const [sortBy, setSortBy] = useState<"price_asc"|"price_desc"|"rating_asc"|"rating_desc">("price_asc")
+  const [open, setOpen] = useState(false)
+  const { toast } = useToast()
+  const [restaurantSearch, setRestaurantSearch] = useState("")
+  const [restaurantLimit, setRestaurantLimit] = useState(10)
+  const [restaurantPopoverOpen, setRestaurantPopoverOpen] = useState(false)
+
+  type CreateDishInput = {
+    name: string
+    restaurantId: string
+    description: string
+    price: string
+    imageUrl: string
+  }
+
+  const form = useForm<CreateDishInput>({
+    defaultValues: { name: "", restaurantId: "", description: "", price: "", imageUrl: "" },
+    mode: "onTouched",
+  })
+
+  function onSubmit(values: CreateDishInput) {
+    try {
+      // TODO: integrate API to create dish
+      const payload = {
+        ...values,
+        price: Number(values.price.replace(/\./g, "").trim() || 0),
+      }
+      console.log("Create dish", payload)
+      toast({
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Món ăn đã được thêm thành công!</span>
+          </div>
+        )
+      })
+      setOpen(false)
+      form.reset()
+    } catch (e) {
+      toast({ variant: "destructive", title: "Tạo thất bại", description: "Vui lòng thử lại sau." })
+    }
+  }
 
   const dishes: Dish[] = mockDishes
 
@@ -85,9 +133,142 @@ export default function FoodsPage() {
               className="pl-10 h-10"
             />
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />Thêm món ăn
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />Thêm món ăn
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader className="items-center text-center">
+              <DialogTitle className="text-center">Thêm món ăn</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  rules={{ required: "Vui lòng nhập tên món ăn" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tên món ăn</FormLabel>
+                      <FormControl>
+                        <Input placeholder="VD: Cơm tấm sườn bì" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="restaurantId"
+                  rules={{ required: "Vui lòng chọn quán ăn" }}
+                  render={({ field }) => {
+                    const filtered = mockRestaurants
+                      .filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()))
+                      .slice(0, restaurantLimit)
+                    const selectedName = mockRestaurants.find(r => r.id === field.value)?.name
+                    return (
+                      <FormItem>
+                        <FormLabel>Quán ăn</FormLabel>
+                        <FormControl>
+                          <Popover open={restaurantPopoverOpen} onOpenChange={setRestaurantPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
+                                {selectedName || "Chọn quán"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent sideOffset={6} className="w-[420px] p-0">
+                              <Command>
+                                <CommandInput placeholder="Tìm quán theo tên..." value={restaurantSearch} onValueChange={setRestaurantSearch} />
+                                <div className="max-h-[300px] overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
+                                  <CommandList>
+                                    <CommandEmpty>Không tìm thấy quán phù hợp.</CommandEmpty>
+                                    <CommandGroup heading="Quán ăn">
+                                      {filtered.map(r => (
+                                        <CommandItem key={r.id} value={r.name} onSelect={() => { field.onChange(r.id); setRestaurantPopoverOpen(false) }}>
+                                          {r.name}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </div>
+                                {mockRestaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length > restaurantLimit && (
+                                  <div className="p-2 border-t flex justify-center">
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => setRestaurantLimit(l => l + 20)}>
+                                      Xem thêm
+                                    </Button>
+                                  </div>
+                                )}
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mô tả</FormLabel>
+                      <FormControl>
+                        <Textarea rows={3} placeholder="Mô tả ngắn gọn về món ăn" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="price"
+                  rules={{
+                    required: "Vui lòng nhập giá tiền",
+                    validate: (v) => {
+                      const n = Number((v || "").replace(/\./g, "").trim())
+                      return n > 1000 || "Giá tiền phải lớn hơn 1000"
+                    }
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Giá tiền (VND)</FormLabel>
+                      <FormControl>
+                        <Input inputMode="numeric" placeholder="VD: 45000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="imageUrl"
+                  rules={{
+                    required: "Vui lòng nhập link ảnh",
+                    pattern: { value: /^(https?:\/\/).+$/i, message: "Link ảnh không hợp lệ" }
+                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Link ảnh</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                    Hủy
+                  </Button>
+                  <Button type="submit">Lưu</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex flex-wrap items-end gap-4 justify-between text-[15px] sm:text-base">
