@@ -27,6 +27,7 @@ export default function UsersPage() {
   const [mockUsers, setMockUsers] = useState<User[]>(usersFromMock)
   const { toast } = useToast()
   const [confirmUser, setConfirmUser] = useState<User | null>(null)
+  const [confirmRoleUser, setConfirmRoleUser] = useState<User | null>(null)
 
   const filteredUsers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -107,6 +108,20 @@ export default function UsersPage() {
       )
     })
     // TODO: call API, rollback on error
+  }
+
+  const handleToggleRole = (u: User) => {
+    const nextRole: User["role"] = u.role === 'admin' ? 'user' : 'admin'
+    setMockUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: nextRole } : x))
+    toast({
+      title: (
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <span className="font-medium">{nextRole === 'admin' ? 'Đã cấp quyền Admin' : 'Đã chuyển thành User'}</span>
+        </div>
+      ),
+      duration: 2000
+    })
   }
 
   return (
@@ -222,6 +237,9 @@ export default function UsersPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
                           {/* Bỏ nút Chỉnh sửa theo yêu cầu */}
+                          <DropdownMenuItem onClick={() => setConfirmRoleUser(user)}>
+                            {user.role === 'admin' ? 'Chuyển thành User' : 'Cấp quyền Admin'}
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setConfirmUser(user)}>
                             {user.isActive ? 'Khóa tài khoản' : 'Mở khóa'}
                           </DropdownMenuItem>
@@ -271,6 +289,28 @@ export default function UsersPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={()=>setConfirmUser(null)}>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={()=>{ if(confirmUser){ handleToggleActive(confirmUser); setConfirmUser(null) } }}>Xác nhận</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm role change dialog */}
+      <AlertDialog open={!!confirmRoleUser} onOpenChange={(o)=>{ if(!o) setConfirmRoleUser(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmRoleUser?.role === 'admin' ? 'Xác nhận chuyển thành User' : 'Xác nhận cấp quyền Admin'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmRoleUser?.role === 'admin' ? (
+                <>Bạn có chắc muốn chuyển <b>{confirmRoleUser?.name}</b> thành người dùng thường?</>
+              ) : (
+                <>Bạn có chắc muốn cấp quyền Admin cho <b>{confirmRoleUser?.name}</b>?</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={()=>setConfirmRoleUser(null)}>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={()=>{ if(confirmRoleUser){ handleToggleRole(confirmRoleUser); setConfirmRoleUser(null) } }}>Xác nhận</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
