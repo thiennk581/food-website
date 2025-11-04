@@ -18,6 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
 export default function FoodsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -28,7 +29,10 @@ export default function FoodsPage() {
   const pageSize = 10
   const [sortBy, setSortBy] = useState<"price_asc"|"price_desc"|"rating_asc"|"rating_desc">("price_asc")
   const [open, setOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editing, setEditing] = useState<Dish | null>(null)
   const { toast } = useToast()
+  const [confirmDish, setConfirmDish] = useState<Dish | null>(null)
   const [restaurantSearch, setRestaurantSearch] = useState("")
   const [restaurantLimit, setRestaurantLimit] = useState(10)
   const [restaurantPopoverOpen, setRestaurantPopoverOpen] = useState(false)
@@ -48,6 +52,27 @@ export default function FoodsPage() {
     defaultValues: { name: "", restaurantId: "", description: "", price: "", imageUrl: "" },
     mode: "onTouched",
   })
+
+  // Edit form
+  type EditDishInput = CreateDishInput & { tags: string[] }
+  const editForm = useForm<EditDishInput>({
+    defaultValues: { name: "", restaurantId: "", description: "", price: "", imageUrl: "", tags: [] },
+    mode: "onTouched",
+  })
+
+  useEffect(() => {
+    if (editing) {
+      editForm.reset({
+        name: editing.name,
+        restaurantId: editing.restaurantId,
+        description: editing.description,
+        price: String(editing.price),
+        imageUrl: editing.image,
+        tags: editing.tags
+      })
+      setSelectedTags(editing.tags)
+    }
+  }, [editing])
 
   function onSubmit(values: CreateDishInput) {
     try {
@@ -357,7 +382,7 @@ export default function FoodsPage() {
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="available">Đang bán</SelectItem>
-                <SelectItem value="unavailable">Tạm hết</SelectItem>
+                <SelectItem value="unavailable">Ngưng bán</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -425,7 +450,7 @@ export default function FoodsPage() {
                     {d.isAvailable ? (
                       <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">Đang bán</span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">Tạm hết</span>
+                      <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">Ngưng bán</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
@@ -437,8 +462,8 @@ export default function FoodsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-                        <DropdownMenuItem>Chỉnh sửa</DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setEditing(d); setEditOpen(true) }}>Chỉnh sửa</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setConfirmDish(d)}>
                           {d.isAvailable ? "Tạm ngưng bán" : "Mở bán lại"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -450,6 +475,228 @@ export default function FoodsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Confirm toggle availability */}
+      <AlertDialog open={!!confirmDish} onOpenChange={(o)=>{ if(!o) setConfirmDish(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDish?.isAvailable ? 'Xác nhận tạm ngưng bán' : 'Xác nhận mở bán lại'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDish?.isAvailable
+                ? `Bạn có chắc chắn muốn tạm ngưng bán món "${confirmDish?.name}"? Người dùng sẽ không thể đặt món cho đến khi mở bán lại.`
+                : `Bạn có chắc chắn muốn mở bán lại món "${confirmDish?.name}"? Món sẽ hiển thị cho người dùng đặt.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={()=>setConfirmDish(null)}>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={()=>{
+              if(confirmDish){
+                // Optimistic toggle
+                const next = !confirmDish.isAvailable
+                // Currently dishes come from mockDishes constant; in real app, update local state/source
+                // Here we just toast and clear selection
+                toast({ title: (
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">{next ? 'Đã mở bán lại món ăn' : 'Đã tạm ngưng bán món ăn'}</span>
+                  </div>
+                )})
+                setConfirmDish(null)
+              }
+            }}>Xác nhận</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dish Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader className="items-center text-center">
+            <DialogTitle className="text-center">Chỉnh sửa món ăn</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form className="space-y-4" onSubmit={editForm.handleSubmit((values)=>{
+              try {
+                const payload = {
+                  ...values,
+                  price: Number(values.price.replace(/\./g, "").trim() || 0),
+                  tags: selectedTags,
+                  id: editing?.id,
+                }
+                console.log('Edit dish', payload)
+                toast({ title: (
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <span className="font-medium">Đã cập nhật món ăn!</span>
+                  </div>
+                )})
+                setEditOpen(false)
+                setEditing(null)
+              } catch(e) {
+                toast({ variant:'destructive', title:'Cập nhật thất bại', description:'Vui lòng thử lại sau.' })
+              }
+            })}>
+              <FormField control={editForm.control} name="name" rules={{ required:'Vui lòng nhập tên món ăn' }} render={({field})=> (
+                <FormItem>
+                  <FormLabel>Tên món ăn</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={editForm.control} name="restaurantId" rules={{ required:'Vui lòng chọn quán ăn' }} render={({field})=>{
+                const filtered = mockRestaurants.filter(r=> r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).slice(0, restaurantLimit)
+                const selectedName = mockRestaurants.find(r=> r.id === field.value)?.name
+                return (
+                  <FormItem>
+                    <FormLabel>Quán ăn</FormLabel>
+                    <FormControl>
+                      <Popover open={restaurantPopoverOpen} onOpenChange={setRestaurantPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
+                            {selectedName || 'Chọn quán'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent sideOffset={6} className="w-[420px] p-0">
+                          <Command>
+                            <CommandInput placeholder="Tìm quán theo tên..." value={restaurantSearch} onValueChange={setRestaurantSearch} />
+                            <div className="max-h-[300px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
+                              <CommandList>
+                                <CommandEmpty>Không tìm thấy quán phù hợp.</CommandEmpty>
+                                <CommandGroup heading="Quán ăn">
+                                  {filtered.map(r=> (
+                                    <CommandItem key={r.id} value={r.name} onSelect={()=>{ field.onChange(r.id); setRestaurantPopoverOpen(false) }}>
+                                      {r.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </div>
+                            {mockRestaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length > restaurantLimit && (
+                              <div className="p-2 border-t flex justify-center">
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setRestaurantLimit(l => l + 20)}>
+                                  Xem thêm
+                                </Button>
+                              </div>
+                            )}
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }} />
+
+              <FormField control={editForm.control} name="description" render={({field})=> (
+                <FormItem>
+                  <FormLabel>Mô tả</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Tags (reuse chips and popover) */}
+              <FormItem>
+                <FormLabel>Tag</FormLabel>
+                <FormControl>
+                  <div className="space-y-2">
+                    {selectedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTags.map(tid => {
+                          const t = mockTags.find(x => x.id === tid)
+                          const catId = t?.categoryId
+                          const color = catId === 'cat_1'
+                            ? 'bg-blue-100 text-blue-700 ring-blue-200'
+                            : catId === 'cat_2'
+                            ? 'bg-green-100 text-green-700 ring-green-200'
+                            : catId === 'cat_3'
+                            ? 'bg-amber-100 text-amber-800 ring-amber-200'
+                            : 'bg-purple-100 text-purple-700 ring-purple-200'
+                          return (
+                            <span key={tid} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ring-1 ring-inset ${color}`}>
+                              {t?.name || tid}
+                              <button type="button" className="ml-1 opacity-60 hover:opacity-100" onClick={() => setSelectedTags(prev => prev.filter(x => x !== tid))}>×</button>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full justify-between">
+                          {selectedTags.length > 0 ? `Đã chọn ${selectedTags.length} tag` : "Chọn tag"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent sideOffset={6} className="w-[520px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Tìm tag theo tên..." value={tagSearch} onValueChange={setTagSearch} />
+                          <div className="max-h-[320px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
+                            <CommandList>
+                              <CommandEmpty>Không tìm thấy tag phù hợp.</CommandEmpty>
+                              {mockCategories.map(cat => {
+                                const catTags = mockTags.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                                if (catTags.length === 0) return null
+                                return (
+                                  <CommandGroup key={cat.id} heading={cat.name}>
+                                    {catTags.map(t => {
+                                      const active = selectedTags.includes(t.id)
+                                      return (
+                                        <CommandItem key={t.id} value={t.name} onSelect={() => {
+                                          setSelectedTags(prev => prev.includes(t.id) ? prev.filter(x=>x!==t.id) : [...prev, t.id])
+                                        }}>
+                                          <input type="checkbox" className="mr-2" readOnly checked={active} />
+                                          <span className="text-sm">{t.name}</span>
+                                        </CommandItem>
+                                      )
+                                    })}
+                                  </CommandGroup>
+                                )
+                              })}
+                            </CommandList>
+                          </div>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </FormControl>
+              </FormItem>
+
+              <FormField control={editForm.control} name="price" rules={{
+                required:'Vui lòng nhập giá tiền',
+                validate:(v)=>{ const n = Number((v||'').replace(/\./g,'').trim()); return n>1000 || 'Giá tiền phải lớn hơn 1000' }
+              }} render={({field})=> (
+                <FormItem>
+                  <FormLabel>Giá tiền (VND)</FormLabel>
+                  <FormControl>
+                    <Input inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={editForm.control} name="imageUrl" rules={{ required:'Vui lòng nhập link ảnh', pattern:{ value:/^(https?:\/\/).+$/i, message:'Link ảnh không hợp lệ' } }} render={({field})=> (
+                <FormItem>
+                  <FormLabel>Link ảnh</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={()=>{ setEditOpen(false); setEditing(null) }}>Hủy</Button>
+                <Button type="submit">Lưu</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
