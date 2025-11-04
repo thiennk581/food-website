@@ -44,16 +44,33 @@ export default function useLogin() {
       if (!res.ok) {
         // try to parse error body, fallback to status text
         let message = res.statusText;
+        let errBody: any = null;
         try {
           const errBody = await res.json();
           message = errBody?.message ?? JSON.stringify(errBody) ?? message;
         } catch {}
+        if (res.status === 401) {
+          message = errBody?.message ?? "Email hoặc mật khẩu không chính xác";
+        }
         throw new Error(message || `HTTP ${res.status}`);
       }
 
-      const data: LoginResponse | string = await res
-        .json()
-        .catch(() => "" as any);
+      // const data: LoginResponse | string = await res
+      //   .json()
+      //   .catch(() => "" as any);
+
+      let data: LoginResponse | string;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        // Cố gắng đọc body dưới dạng text để trả về message rõ ràng
+        const textBody = await res.text().catch(() => String(parseErr));
+        throw new Error(
+          `Failed to parse JSON response: ${textBody || (parseErr as Error).message || String(parseErr)}`
+        );
+      }
+
+
 
       // Kiểm tra nếu data là object thì mới đọc roleName
       if (typeof data === "object" && data !== null) {
