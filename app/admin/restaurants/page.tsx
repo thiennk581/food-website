@@ -13,7 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form"
 import { Textarea } from "@/components/ui/textarea"
 import type { Restaurant } from "@/types"
-import { mockRestaurants } from "@/lib/mock-data"
+import { useRestaurants } from "@/hooks/restaurants/use-restaurants"
+import { useCreateRestaurant } from "@/hooks/restaurants/use-create-restaurant"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -23,6 +24,7 @@ export default function RestaurantsPage() {
   const pageSize = 10
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const { mutate: createRestaurant, loading: creating } = useCreateRestaurant()
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<Restaurant | null>(null)
 
@@ -37,10 +39,9 @@ export default function RestaurantsPage() {
     mode: "onTouched",
   })
 
-  function onSubmit(values: CreateRestaurantInput) {
+  async function onSubmit(values: CreateRestaurantInput) {
     try {
-      // TODO: integrate API call to create restaurant
-      console.log("Create restaurant", values)
+      await createRestaurant({ name: values.name, address: values.address, phone: values.phone })
       toast({
         title: (
           <div className="flex items-center gap-3">
@@ -51,6 +52,7 @@ export default function RestaurantsPage() {
       })
       setOpen(false)
       form.reset()
+      refresh()
     } catch (e) {
       toast({ variant: "destructive", title: "Tạo thất bại", description: "Vui lòng thử lại sau." })
     }
@@ -91,9 +93,13 @@ export default function RestaurantsPage() {
     }
   }
 
+  const { data, loading, error, refresh } = useRestaurants()
+
+  const restaurants = data || []
+
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
-    return mockRestaurants.filter((r) => {
+    return restaurants.filter((r) => {
       if (!q) return true
       return (
         r.name.toLowerCase().includes(q) ||
@@ -101,7 +107,7 @@ export default function RestaurantsPage() {
         r.phone.toLowerCase().includes(q)
       )
     })
-  }, [searchQuery])
+  }, [searchQuery, restaurants])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const paged = useMemo(() => {
@@ -195,7 +201,7 @@ export default function RestaurantsPage() {
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                       Hủy
                     </Button>
-                    <Button type="submit">Lưu</Button>
+                    <Button type="submit" disabled={creating}>{creating ? "Đang lưu..." : "Lưu"}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -214,6 +220,16 @@ export default function RestaurantsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Đang tải danh sách...</TableCell>
+                </TableRow>
+              )}
+              {error && !loading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-destructive">Lỗi tải dữ liệu: {error}</TableCell>
+                </TableRow>
+              )}
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
