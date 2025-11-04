@@ -1,64 +1,56 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle } from "lucide-react"
-import useLogin from "@/hooks/authService/use-login"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle } from "lucide-react";
+import useLogin from "@/hooks/authService/use-login";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const { login, loading } = useLogin()
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { login, loading, error, token, logout } = useLogin();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+    e.preventDefault();
     try {
-      const token = await login({ username: email, password })
+      await login({ email, password });
 
-      // Optionally decode token or fetch profile to decide role
-      // For now, rely on backend cookie or a follow-up role check endpoint if available.
+      const role = localStorage.getItem("roleName");
 
-      // Keep compatibility with existing middleware by setting a lightweight cookie flag.
-      document.cookie = `auth_token=true; path=/; max-age=86400`
-
-      // Try to detect role quickly from a stored hint if backend set it in token (JWT) or via user info in localStorage.
-      // If you have an endpoint like /auth/me, prefer calling it here to get role.
-      let role: string | null = null
-      try {
-        const stored = localStorage.getItem("user_role")
-        role = stored ? stored : null
-      } catch {}
-
-      if (role === "admin") {
-        document.cookie = `user_role=admin; path=/; max-age=86400`
-        router.push("/admin/dashboard")
-        return
+      if (role === "ADMIN") {
+        router.push("/admin/dashboard");
+        return;
       }
 
-      // Default route for normal users
-      document.cookie = `user_role=user; path=/; max-age=86400`
-      router.push("/user/food")
+      router.push("/user/food");
     } catch (err: any) {
-      setError(err?.message || "Đăng nhập thất bại. Vui lòng thử lại.")
+      console.error(err);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Đăng nhập</CardTitle>
-          <CardDescription>Nhập thông tin để đăng nhập vào tài khoản của bạn</CardDescription>
+          <CardDescription>
+            Nhập thông tin để đăng nhập vào tài khoản của bạn
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -106,7 +98,10 @@ export default function LoginPage() {
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Chưa có tài khoản?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
+              <Link
+                href="/register"
+                className="font-medium text-primary hover:underline"
+              >
                 Đăng ký ngay
               </Link>
             </p>
@@ -114,5 +109,5 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
-  )
+  );
 }
