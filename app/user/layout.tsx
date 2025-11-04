@@ -7,8 +7,9 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { authService } from "@/lib/auth";
+// import { authService } from "@/lib/auth";
 import useLogin from "@/hooks/authService/use-login";
+
 import { useCart } from "@/hooks/use-cart";
 import {
   UtensilsCrossed,
@@ -28,24 +29,17 @@ export default function UserLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { getTotalItems } = useCart();
-  const [user, setUser] = useState(authService.getCurrentUser());
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logout } = useLogin();
-
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (!currentUser) {
-      router.push("/login");
-    } else {
-      setUser(currentUser);
-    }
-  }, [router]);
+  const userJson = localStorage.getItem("user");
+  const user = userJson ? JSON.parse(userJson) : null;
+  const email = user?.email ?? "Người dùng";
 
   const handleLogout = async () => {
     try {
       await logout();
     } finally {
-      setUser(null);
       router.replace("/login");
     }
   };
@@ -98,9 +92,7 @@ export default function UserLayout({
             </Button>
 
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-sm text-muted-foreground">
-                {user?.name}
-              </span>
+              <span className="text-sm text-muted-foreground">{email}</span>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -145,9 +137,7 @@ export default function UserLayout({
                 );
               })}
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                <span className="text-sm text-muted-foreground">
-                  {user?.name}
-                </span>
+                <span className="text-sm text-muted-foreground">{email}</span>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Đăng xuất

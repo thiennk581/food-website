@@ -18,7 +18,7 @@ export interface User {
   gender: "male" | "female" | "other"
   birthdate: string
   avatarUrl?: string
-  role: "user" | "admin"
+  roleName: "USER" | "ADMIN"
   createdAt: string
   isActive: boolean
   bias: Bias[]

@@ -1,98 +1,114 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { authService } from "@/lib/auth"
-import { AlertCircle, CheckCircle2 } from "lucide-react"
+import type React from "react";
+import useRegister from "@/hooks/authService/use-register";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter()
+  const router = useRouter();
+  const { register, loading } = useRegister();
+  const [error, setError] = useState<string>("");
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
-    phone: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
-  })
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+    birthday: "01-01-2000",
+    gender: "MALE",
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
-    }))
-  }
+    }));
+  };
 
   const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.phone || !formData.password) {
-      setError("Vui lòng điền đầy đủ thông tin")
-      return false
+    if (
+      !formData.fullName ||
+      !formData.email ||
+      !formData.phoneNumber ||
+      !formData.password
+    ) {
+      setError("Vui lòng điền đầy đủ thông tin");
+      return false;
     }
 
     if (formData.password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự")
-      return false
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp")
-      return false
+      setError("Mật khẩu xác nhận không khớp");
+      return false;
     }
 
-    const phoneRegex = /^[0-9]{10}$/
-    if (!phoneRegex.test(formData.phone)) {
-      setError("Số điện thoại không hợp lệ")
-      return false
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.phoneNumber)) {
+      setError("Số điện thoại không hợp lệ");
+      return false;
     }
 
-    return true
-  }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+    e.preventDefault();
+    setError("");
 
     if (!validateForm()) {
-      return
+      return;
     }
-
-    setIsLoading(true)
 
     try {
-      const user = authService.register({
+      const token = await register({
         email: formData.email,
-        name: formData.name,
-        phone: formData.phone,
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
         password: formData.password,
-      })
-
-      // Set cookies for middleware
-      document.cookie = `auth_token=true; path=/; max-age=86400`
-      document.cookie = `user_role=${user.role}; path=/; max-age=86400`
+        birthday: formData.birthday,
+        gender: formData.gender,
+      });
+      try {
+        const stored =
+          typeof window !== "undefined" ? localStorage.getItem("user") : null;
+        const parsed = stored ? JSON.parse(stored) : null;
+        const role = parsed?.roleName ?? parsed?.role ?? null;
+      } catch {}
 
       // Redirect to user dashboard
-      router.push("/user/food")
+      router.push("/user/food");
     } catch (err) {
-      setError("Đã có lỗi xảy ra. Vui lòng thử lại.")
-    } finally {
-      setIsLoading(false)
+      setError("Đã có lỗi xảy ra. Vui lòng thử lại.");
+      setError((err as any)?.message ?? "Đã có lỗi xảy ra. Vui lòng thử lại.");
     }
-  }
+  };
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Đăng ký</CardTitle>
-          <CardDescription>Tạo tài khoản mới để bắt đầu đặt món</CardDescription>
+          <CardDescription>
+            Tạo tài khoản mới để bắt đầu đặt món
+          </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -106,11 +122,11 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Label htmlFor="name">Họ và tên</Label>
               <Input
-                id="name"
-                name="name"
+                id="fullName"
+                name="fullName"
                 type="text"
                 placeholder="Nguyễn Văn A"
-                value={formData.name}
+                value={formData.fullName}
                 onChange={handleChange}
                 required
               />
@@ -132,11 +148,11 @@ export default function RegisterPage() {
             <div className="space-y-2">
               <Label htmlFor="phone">Số điện thoại</Label>
               <Input
-                id="phone"
-                name="phone"
+                id="phoneNumber"
+                name="phoneNumber"
                 type="tel"
                 placeholder="0901234567"
-                value={formData.phone}
+                value={formData.phoneNumber}
                 onChange={handleChange}
                 required
               />
@@ -153,7 +169,9 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 required
               />
-              <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 6 ký tự</p>
+              <p className="text-xs text-muted-foreground">
+                Mật khẩu phải có ít nhất 6 ký tự
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -175,12 +193,15 @@ export default function RegisterPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Đang đăng ký..." : "Đăng ký"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Đang đăng ký..." : "Đăng ký"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Đã có tài khoản?{" "}
-              <Link href="/login" className="font-medium text-primary hover:underline">
+              <Link
+                href="/login"
+                className="font-medium text-primary hover:underline"
+              >
                 Đăng nhập
               </Link>
             </p>
@@ -188,5 +209,5 @@ export default function RegisterPage() {
         </form>
       </Card>
     </div>
-  )
+  );
 }

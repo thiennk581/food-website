@@ -1,13 +1,13 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
-import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { Logo } from "@/components/logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,8 +15,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { authService } from "@/lib/auth"
+} from "@/components/ui/dropdown-menu";
+// import { authService } from "@/lib/auth";
 import {
   LayoutDashboard,
   Users,
@@ -29,28 +29,32 @@ import {
   Bell,
   Search,
   Home,
-} from "lucide-react"
-import { User } from "@/types"
+} from "lucide-react";
+import { User } from "@/types";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [user, setUser] = useState<User | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser()
-    if (!currentUser || currentUser.role !== "admin") {
-      router.push("/login")
-    } else {
-      setUser(currentUser as User)
-    }
-  }, [router])
+  // useEffect(() => {
+  //   const currentUser = authService.getCurrentUser();
+  //   if (!currentUser || currentUser.roleName !== "ADMIN") {
+  //     router.push("/login");
+  //   } else {
+  //     setUser(currentUser as User);
+  //   }
+  // }, [router]);
 
   const handleLogout = () => {
-    authService.logout()
-    router.push("/login")
-  }
+    // authService.logout();
+    router.push("/login");
+  };
 
   const navItems = [
     { href: "/admin/dashboard", label: "Trang chủ", icon: LayoutDashboard },
@@ -58,12 +62,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/foods", label: "Món ăn", icon: UtensilsCrossed },
     { href: "/admin/restaurants", label: "Quán ăn", icon: Home },
     { href: "/admin/reviews", label: "Đánh giá", icon: BarChart3 },
-  ]
+  ];
 
   const bottomNavItems = [
     { href: "#", label: "Setting", icon: Settings },
     { href: "#", label: "Log out", icon: LogOut, onClick: handleLogout },
-  ]
+  ];
 
   if (!user) {
     return (
@@ -71,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* You can add a loading spinner here */}
         <p>Loading...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -98,7 +102,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       : "text-muted-foreground hover:bg-gray-100 hover:text-foreground dark:hover:bg-gray-800"
                   }`}
                 >
-                  <item.icon className={`h-5 w-5 ${pathname === item.href ? "text-primary" : ""}`} />
+                  <item.icon
+                    className={`h-5 w-5 ${
+                      pathname === item.href ? "text-primary" : ""
+                    }`}
+                  />
                   {item.label}
                 </Link>
               </li>
@@ -144,7 +152,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Button>
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Tìm kiếm..." className="w-full rounded-2xl bg-gray-100 pl-10 dark:bg-gray-800" />
+              <Input
+                placeholder="Tìm kiếm..."
+                className="w-full rounded-2xl bg-gray-100 pl-10 dark:bg-gray-800"
+              />
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -153,14 +164,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-3 rounded-lg px-2 py-1.5"
+                >
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.avatarUrl || "/placeholder-user.jpg"} alt={user.name} />
+                    <AvatarImage
+                      src={user.avatarUrl || "/placeholder-user.jpg"}
+                      alt={user.name}
+                    />
                     <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="hidden text-left lg:block">
                     <p className="text-sm font-semibold">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">Visual Designer</p>
+                    <p className="text-xs text-muted-foreground">
+                      Visual Designer
+                    </p>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
@@ -170,7 +189,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <DropdownMenuItem>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  Log out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -180,5 +201,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
-  )
+  );
 }
