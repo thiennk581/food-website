@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Star, RefreshCw } from "lucide-react"
 import { Search, MoreVertical, Plus, CheckCircle2 } from "lucide-react"
 import type { Dish } from "@/types"
-import { mockDishes, mockRestaurants } from "@/lib/mock-data"
+import { mockDishes, mockRestaurants, mockTags, mockCategories } from "@/lib/mock-data"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -32,6 +32,9 @@ export default function FoodsPage() {
   const [restaurantSearch, setRestaurantSearch] = useState("")
   const [restaurantLimit, setRestaurantLimit] = useState(10)
   const [restaurantPopoverOpen, setRestaurantPopoverOpen] = useState(false)
+  const [tagSearch, setTagSearch] = useState("")
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   type CreateDishInput = {
     name: string
@@ -52,6 +55,7 @@ export default function FoodsPage() {
       const payload = {
         ...values,
         price: Number(values.price.replace(/\./g, "").trim() || 0),
+        tags: selectedTags,
       }
       console.log("Create dish", payload)
       toast({
@@ -222,6 +226,71 @@ export default function FoodsPage() {
                     </FormItem>
                   )}
                 />
+                {/* Tags multi-select */}
+                <FormItem>
+                  <FormLabel>Tag</FormLabel>
+                  <FormControl>
+                    <div className="space-y-2">
+                      {selectedTags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedTags.map(tid => {
+                            const t = mockTags.find(x => x.id === tid)
+                            const catId = t?.categoryId
+                            const color = catId === 'cat_1'
+                              ? 'bg-blue-100 text-blue-700 ring-blue-200'
+                              : catId === 'cat_2'
+                              ? 'bg-green-100 text-green-700 ring-green-200'
+                              : catId === 'cat_3'
+                              ? 'bg-amber-100 text-amber-800 ring-amber-200'
+                              : 'bg-purple-100 text-purple-700 ring-purple-200'
+                            return (
+                              <span key={tid} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ring-1 ring-inset ${color}`}>
+                                {t?.name || tid}
+                                <button type="button" className="ml-1 opacity-60 hover:opacity-100" onClick={() => setSelectedTags(prev => prev.filter(x => x !== tid))}>×</button>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full justify-between">
+                            {selectedTags.length > 0 ? `Đã chọn ${selectedTags.length} tag` : "Chọn tag"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent sideOffset={6} className="w-[520px] p-0">
+                          <Command>
+                            <CommandInput placeholder="Tìm tag theo tên..." value={tagSearch} onValueChange={setTagSearch} />
+                            <div className="max-h-[320px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
+                              <CommandList>
+                                <CommandEmpty>Không tìm thấy tag phù hợp.</CommandEmpty>
+                                {mockCategories.map(cat => {
+                                  const catTags = mockTags.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                                  if (catTags.length === 0) return null
+                                  return (
+                                    <CommandGroup key={cat.id} heading={cat.name}>
+                                      {catTags.map(t => {
+                                        const active = selectedTags.includes(t.id)
+                                        return (
+                                          <CommandItem key={t.id} value={t.name} onSelect={() => {
+                                            setSelectedTags(prev => prev.includes(t.id) ? prev.filter(x=>x!==t.id) : [...prev, t.id])
+                                          }}>
+                                            <input type="checkbox" className="mr-2" readOnly checked={active} />
+                                            <span className="text-sm">{t.name}</span>
+                                          </CommandItem>
+                                        )
+                                      })}
+                                    </CommandGroup>
+                                  )
+                                })}
+                              </CommandList>
+                            </div>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </FormControl>
+                </FormItem>
                 <FormField
                   control={form.control}
                   name="price"
