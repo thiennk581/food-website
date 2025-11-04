@@ -130,6 +130,7 @@ export default function useLogin() {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("roleName");
     setToken(null);
   }, []);
 

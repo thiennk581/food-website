@@ -1,44 +1,62 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
-import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { authService } from "@/lib/auth"
-import { useCart } from "@/hooks/use-cart"
-import { UtensilsCrossed, ShoppingCart, User, Package, LogOut, Menu, X } from "lucide-react"
+import type React from "react";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { Logo } from "@/components/logo";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { authService } from "@/lib/auth";
+import useLogin from "@/hooks/authService/use-login";
+import { useCart } from "@/hooks/use-cart";
+import {
+  UtensilsCrossed,
+  ShoppingCart,
+  User,
+  Package,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 
-export default function UserLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const { getTotalItems } = useCart()
-  const [user, setUser] = useState(authService.getCurrentUser())
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+export default function UserLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { getTotalItems } = useCart();
+  const [user, setUser] = useState(authService.getCurrentUser());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { logout } = useLogin();
 
   useEffect(() => {
-    const currentUser = authService.getCurrentUser()
+    const currentUser = authService.getCurrentUser();
     if (!currentUser) {
-      router.push("/login")
+      router.push("/login");
     } else {
-      setUser(currentUser)
+      setUser(currentUser);
     }
-  }, [router])
+  }, [router]);
 
-  const handleLogout = () => {
-    authService.logout()
-    router.push("/login")
-  }
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setUser(null);
+      router.replace("/login");
+    }
+  };
 
-  const cartItemCount = getTotalItems()
+  const cartItemCount = getTotalItems();
 
   const navItems = [
     { href: "/user/food", label: "Món ăn", icon: UtensilsCrossed },
     { href: "/user/orders", label: "Đơn hàng", icon: Package },
     { href: "/user/profile", label: "Tài khoản", icon: User },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,8 +67,8 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             <Logo />
             <nav className="hidden items-center gap-6 md:flex">
               {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname.startsWith(item.href)
+                const Icon = item.icon;
+                const isActive = pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
@@ -62,7 +80,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
                     <Icon className="h-4 w-4" />
                     {item.label}
                   </Link>
-                )
+                );
               })}
             </nav>
           </div>
@@ -80,7 +98,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
             </Button>
 
             <div className="hidden items-center gap-2 md:flex">
-              <span className="text-sm text-muted-foreground">{user?.name}</span>
+              <span className="text-sm text-muted-foreground">
+                {user?.name}
+              </span>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -92,7 +112,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileMenuOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -102,24 +126,28 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           <div className="border-t border-border bg-card md:hidden">
             <nav className="container mx-auto flex flex-col px-4 py-4">
               {navItems.map((item) => {
-                const Icon = item.icon
-                const isActive = pathname.startsWith(item.href)
+                const Icon = item.icon;
+                const isActive = pathname.startsWith(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
-                      isActive ? "bg-accent text-primary" : "text-muted-foreground"
+                      isActive
+                        ? "bg-accent text-primary"
+                        : "text-muted-foreground"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
                   </Link>
-                )
+                );
               })}
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                <span className="text-sm text-muted-foreground">{user?.name}</span>
+                <span className="text-sm text-muted-foreground">
+                  {user?.name}
+                </span>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Đăng xuất
@@ -133,5 +161,5 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       {/* Main Content */}
       <main>{children}</main>
     </div>
-  )
+  );
 }
