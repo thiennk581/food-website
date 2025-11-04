@@ -7,9 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, Lock, Unlock, Filter, MapPin } from "lucide-react"
+import { Search, MoreVertical, Lock, Unlock, Filter, MapPin, CheckCircle2 } from "lucide-react"
 import type { User } from "@/types"
 import { mockUsers as usersFromMock } from "@/lib/mock-data"
+import { useToast } from "@/hooks/use-toast"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 // Đã bỏ bộ lọc vai trò/trạng thái theo yêu cầu
 // Bỏ avatar theo yêu cầu
 
@@ -21,7 +23,10 @@ export default function UsersPage() {
   const pageSize = 10
 
   // Dữ liệu mock lấy từ module
-  const mockUsers: User[] = usersFromMock
+  // Local state copy to allow optimistic update and toast
+  const [mockUsers, setMockUsers] = useState<User[]>(usersFromMock)
+  const { toast } = useToast()
+  const [confirmUser, setConfirmUser] = useState<User | null>(null)
 
   const filteredUsers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -87,6 +92,21 @@ export default function UsersPage() {
     if (!list || list.length === 0) return "-"
     const def = list.find((a) => a.isDefault) || list[0]
     return def.address || "-"
+  }
+
+  // lock/unlock handling with toast
+  const handleToggleActive = (u: User) => {
+    const next = !u.isActive
+    setMockUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
+    toast({
+      title: (
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <span className="font-medium">{next ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'} {u.name}.</span>
+        </div>
+      )
+    })
+    // TODO: call API, rollback on error
   }
 
   return (
@@ -201,17 +221,9 @@ export default function UsersPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem>Xem chi tiết</DropdownMenuItem>
-                          <DropdownMenuItem>Chỉnh sửa</DropdownMenuItem>
-                          <DropdownMenuItem>
-                            {user.isActive ? (
-                              <>
-                                Khóa tài khoản
-                              </>
-                            ) : (
-                              <>
-                                Mở khóa
-                              </>
-                            )}
+                          {/* Bỏ nút Chỉnh sửa theo yêu cầu */}
+                          <DropdownMenuItem onClick={() => setConfirmUser(user)}>
+                            {user.isActive ? 'Khóa tài khoản' : 'Mở khóa'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -241,6 +253,27 @@ export default function UsersPage() {
           </Button>
         </div>
       </div>
+      {/* Global controlled confirm dialog */}
+      <AlertDialog open={!!confirmUser} onOpenChange={(o)=>{ if(!o) setConfirmUser(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmUser?.isActive ? 'Xác nhận khóa tài khoản' : 'Xác nhận mở khóa tài khoản'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmUser?.isActive ? (
+                <>Bạn có chắc muốn khóa tài khoản của <b>{confirmUser?.name}</b>?</>
+              ) : (
+                <>Bạn có chắc muốn mở khóa tài khoản của <b>{confirmUser?.name}</b>?</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={()=>setConfirmUser(null)}>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={()=>{ if(confirmUser){ handleToggleActive(confirmUser); setConfirmUser(null) } }}>Xác nhận</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
