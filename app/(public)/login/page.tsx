@@ -9,42 +9,47 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { authService } from "@/lib/auth"
 import { AlertCircle } from "lucide-react"
+import useLogin from "@/hooks/authService/use-login"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const { login, loading } = useLogin()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setIsLoading(true)
-
     try {
-      const user = authService.login(email, password)
+      const token = await login({ username: email, password })
 
-      if (user) {
-        // Set cookies for middleware
-        document.cookie = `auth_token=true; path=/; max-age=86400`
-        document.cookie = `user_role=${user.role}; path=/; max-age=86400`
+      // Optionally decode token or fetch profile to decide role
+      // For now, rely on backend cookie or a follow-up role check endpoint if available.
 
-        // Redirect based on role
-        if (user.role === "admin") {
-          router.push("/admin/dashboard")
-        } else {
-          router.push("/user/food")
-        }
-      } else {
-        setError("Email hoặc mật khẩu không đúng")
+      // Keep compatibility with existing middleware by setting a lightweight cookie flag.
+      document.cookie = `auth_token=true; path=/; max-age=86400`
+
+      // Try to detect role quickly from a stored hint if backend set it in token (JWT) or via user info in localStorage.
+      // If you have an endpoint like /auth/me, prefer calling it here to get role.
+      let role: string | null = null
+      try {
+        const stored = localStorage.getItem("user_role")
+        role = stored ? stored : null
+      } catch {}
+
+      if (role === "admin") {
+        document.cookie = `user_role=admin; path=/; max-age=86400`
+        router.push("/admin/dashboard")
+        return
       }
-    } catch (err) {
-      setError("Đã có lỗi xảy ra. Vui lòng thử lại.")
-    } finally {
-      setIsLoading(false)
+
+      // Default route for normal users
+      document.cookie = `user_role=user; path=/; max-age=86400`
+      router.push("/user/food")
+    } catch (err: any) {
+      setError(err?.message || "Đăng nhập thất bại. Vui lòng thử lại.")
     }
   }
 
@@ -96,8 +101,8 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Chưa có tài khoản?{" "}
