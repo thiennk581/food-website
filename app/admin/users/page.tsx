@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, UserPlus, Lock, Unlock, Filter, RefreshCw, MapPin } from "lucide-react"
+import { Search, MoreVertical, Lock, Unlock, Filter, MapPin } from "lucide-react"
 import type { User } from "@/types"
 import { mockUsers as usersFromMock } from "@/lib/mock-data"
 // Đã bỏ bộ lọc vai trò/trạng thái theo yêu cầu
@@ -90,23 +90,13 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-8 px-18 py-10 bg-background flex-1">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý người dùng</h1>
-          <p className="text-muted-foreground">Theo dõi tài khoản, vai trò và trạng thái hoạt động</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setQuickFilter("all"); setPage(1) }}>
-            <RefreshCw className="mr-2 h-4 w-4" />Đặt lại
-          </Button>
-          <Button>
-            <UserPlus className="mr-2 h-4 w-4" />Thêm người dùng
-          </Button>
-        </div>
+    <div className="space-y-8 px-18 pt-10 bg-background flex-1">
+      <div className="text-center">
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight pb-3">Quản lý người dùng</h1>
+        <div className="mx-auto mt-2 h-1 w-24 rounded bg-foreground/80" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 pt-7">
         <button onClick={() => { setQuickFilter('all'); setPage(1) }}
           className={`rounded-xl  p-4 text-center transition-all hover:shadow-sm hover:-translate-y-[1px] ${quickFilter==='all' ? 'ring-3 ring-violet-400 bg-violet-100 text-violet-700' : 'border-violet-200 bg-violet-200/60 hover:bg-violet-100 text-violet-700'}`}>
           <div className="text-sm font-medium p-1">Tổng người dùng</div>
