@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   User,
   MapPin,
@@ -43,24 +43,114 @@ import { mockUsers, mockCategories, mockTags } from "@/lib/mock-data"
 import { AddressDialog } from "@/components/address-dialog"
 import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { cn } from "@/lib/utils"
-import type { Address, Bias } from "@/types"
+import { fetchUserProfile, updateUserProfile } from "@/services/users"
+import type { Address, Bias, User } from "@/types"
+
+const DEFAULT_USER: User =
+  (Array.isArray(mockUsers) && mockUsers.length > 0
+    ? mockUsers[0]
+    : {
+        id: "user_fallback",
+        email: "",
+        name: "",
+        phone: "",
+        gender: "other",
+        birthdate: "",
+        roleName: "USER",
+        createdAt: "",
+        isActive: true,
+        bias: [],
+        address: [],
+      })
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(mockUsers)
+  const [user, setUser] = useState<User>(DEFAULT_USER)
   const [birthdate, setBirthdate] = useState<Date | undefined>(
-    user.birthdate ? new Date(user.birthdate) : undefined,
+    DEFAULT_USER.birthdate ? new Date(DEFAULT_USER.birthdate) : undefined,
   )
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
   const [profileData, setProfileData] = useState({
-    name: user.name,
-    phone: user.phone,
+    name: DEFAULT_USER.name,
+    phone: DEFAULT_USER.phone,
   })
+  const [gender, setGender] = useState<User["gender"]>(DEFAULT_USER.gender)
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
   const [isAddressDialogOpen, setAddressDialogOpen] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addressToDelete, setAddressToDelete] = useState<Address | null>(null)
   const [isPasswordDialogOpen, setPasswordDialogOpen] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadProfile = async () => {
+      setIsProfileLoading(true)
+      setProfileError(null)
+
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+
+        if (!token) {
+          throw new Error("Bạn cần đăng nhập để xem thông tin tài khoản.")
+        }
+
+        const data = await fetchUserProfile({ token })
+        if (!isMounted) return
+
+        const normalizedGender = data.gender?.toLowerCase() as User["gender"] | undefined
+        let snapshot: User | null = null
+
+        setUser((currentUser) => {
+          const updatedUser: User = {
+            ...currentUser,
+            name: data.fullName ?? currentUser.name,
+            phone: data.phoneNumber ?? currentUser.phone,
+            email: data.email ?? currentUser.email,
+            birthdate: data.birthday ?? currentUser.birthdate,
+            gender: normalizedGender ?? currentUser.gender,
+          }
+          snapshot = updatedUser
+          return updatedUser
+        })
+
+        if (snapshot) {
+          setProfileData({
+            name: snapshot.name,
+            phone: snapshot.phone,
+          })
+          setBirthdate(snapshot.birthdate ? new Date(snapshot.birthdate) : undefined)
+          setGender(snapshot.gender)
+          setProfileError(null)
+        }
+      } catch (error) {
+        if (!isMounted) return
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Không thể tải thông tin tài khoản. Vui lòng thử lại."
+        setProfileError(message)
+        toast({
+          variant: "destructive",
+          title: "Không thể tải thông tin",
+          description: message,
+        })
+      } finally {
+        if (isMounted) {
+          setIsProfileLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      isMounted = false
+    }
+  }, [toast])
 
   const handleScoreChange = (tagId: string, newScore: number) => {
     setUser((currentUser) => {
@@ -133,7 +223,7 @@ export default function ProfilePage() {
     setProfileData({ ...profileData, [e.target.name]: e.target.value })
   }
 
-  const handleProfileSave = () => {
+  const handleProfileSave = async () => {
     const { name, phone } = profileData
     if (!name.trim() || !phone.trim()) {
       toast({
@@ -162,20 +252,74 @@ export default function ProfilePage() {
       })
       return
     }
-    setUser((currentUser) => ({
-      ...currentUser,
-      ...profileData,
-      birthdate: birthdate ? birthdate.toISOString() : currentUser.birthdate,
-    }))
-    toast({
-      variant: "success",
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">Đã cập nhật thông tin thành công!</span>
-        </div>
-      ),
-    })
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Không thể cập nhật",
+        description: "Vui lòng đăng nhập lại để tiếp tục.",
+      })
+      return
+    }
+
+    const payload = {
+      fullName: name.trim(),
+      birthday: birthdate ? format(birthdate, "dd-MM-yyyy") : null,
+      gender: gender.toUpperCase() as "MALE" | "FEMALE" | "OTHER",
+      phoneNumber: phone.trim(),
+      email: user.email,
+    }
+
+    try {
+      setIsSavingProfile(true)
+      const response = await updateUserProfile(payload, { token })
+
+      const responseGender = response?.gender?.toLowerCase() as User["gender"] | undefined
+      const nextGender = responseGender ?? gender
+      const nextName = response?.fullName ?? payload.fullName
+      const nextPhone = response?.phoneNumber ?? payload.phoneNumber
+      const nextEmail = response?.email ?? user.email
+      const nextBirthdateString =
+        response && "birthday" in response ? response.birthday : payload.birthday
+      const nextBirthdateDate = nextBirthdateString ? new Date(nextBirthdateString) : undefined
+
+      setUser((currentUser) => ({
+        ...currentUser,
+        name: nextName,
+        phone: nextPhone,
+        email: nextEmail,
+        birthdate: nextBirthdateString ?? "",
+        gender: nextGender,
+      }))
+      setProfileData({
+        name: nextName,
+        phone: nextPhone,
+      })
+      setBirthdate(nextBirthdateDate)
+      setGender(nextGender)
+
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã cập nhật thông tin thành công!</span>
+          </div>
+        ),
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật thông tin. Vui lòng thử lại sau."
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
+    } finally {
+      setIsSavingProfile(false)
+    }
   }
 
   return (
@@ -208,19 +352,42 @@ export default function ProfilePage() {
                 Đổi mật khẩu
               </Button>
             </div>
+            {profileError && (
+              <div className="mb-6 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {profileError}
+              </div>
+            )}
+            {isProfileLoading && !profileError && (
+              <div className="mb-6 rounded-md border border-dashed border-muted px-4 py-3 text-sm text-muted-foreground">
+                Đang tải thông tin tài khoản...
+              </div>
+            )}
             <div className="space-y-8">
               <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Họ và tên</Label>
-                  <Input id="name" name="name" value={profileData.name} onChange={handleProfileChange} />
+                  <Input
+                    id="name"
+                    name="name"
+                    value={profileData.name}
+                    onChange={handleProfileChange}
+                    disabled={isProfileLoading || isSavingProfile}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Số điện thoại</Label>
-                  <Input id="phone" name="phone" value={profileData.phone} onChange={handleProfileChange} />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    value={profileData.phone}
+                    onChange={handleProfileChange}
+                    disabled={isProfileLoading || isSavingProfile}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" defaultValue={user.email} disabled />
+                  <Input id="email" value={user.email} onChange={handleProfileChange}
+                    disabled={isProfileLoading} />
                 </div>
                 <div className="space-y-2">
                   <Label>Ngày sinh</Label>
@@ -232,6 +399,7 @@ export default function ProfilePage() {
                           "w-full justify-start text-left font-normal",
                           !birthdate && "text-muted-foreground",
                         )}
+                        disabled={isProfileLoading || isSavingProfile}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {birthdate ? format(birthdate, "PPP", { locale: vi }) : <span>Chọn ngày</span>}
@@ -253,24 +421,36 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-3">
                 <Label>Giới tính</Label>
-                <RadioGroup defaultValue={user.gender} className="flex gap-6">
+                <RadioGroup
+                  value={gender}
+                  onValueChange={(value) => setGender(value as User["gender"])}
+                  className="flex gap-6"
+                >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="male" />
+                    <RadioGroupItem value="male" id="male" disabled={isProfileLoading || isSavingProfile} />
                     <Label htmlFor="male">Nam</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="female" />
+                    <RadioGroupItem
+                      value="female"
+                      id="female"
+                      disabled={isProfileLoading || isSavingProfile}
+                    />
                     <Label htmlFor="female">Nữ</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="other" id="other" />
+                    <RadioGroupItem value="other" id="other" disabled={isProfileLoading || isSavingProfile} />
                     <Label htmlFor="other">Khác</Label>
                   </div>
                 </RadioGroup>
               </div>
               <div className="border-t pt-6">
-                <Button onClick={handleProfileSave} className="bg-green-700 hover:bg-green-800">
-                  Lưu thay đổi
+                <Button
+                  onClick={handleProfileSave}
+                  className="bg-green-700 hover:bg-green-800"
+                  disabled={isProfileLoading || isSavingProfile}
+                >
+                  {isSavingProfile ? "Đang lưu..." : "Lưu thay đổi"}
                 </Button>
               </div>
             </div>

@@ -32,14 +32,29 @@ export default function UserLayout({
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logout } = useLogin();
-  const userJson = localStorage.getItem("user");
-  const user = userJson ? JSON.parse(userJson) : null;
-  const email = user?.email ?? "Người dùng";
+  const [email, setEmail] = useState("Người dùng");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedUser =
+      localStorage.getItem("food_ordering_user") ?? localStorage.getItem("user");
+    if (!storedUser) return;
+    try {
+      const parsed = JSON.parse(storedUser);
+      setEmail(parsed?.email ?? "Người dùng");
+    } catch (error) {
+      console.error("Không thể đọc thông tin người dùng từ localStorage", error);
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
       await logout();
     } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("food_ordering_user");
+        localStorage.removeItem("user");
+      }
       router.replace("/login");
     }
   };

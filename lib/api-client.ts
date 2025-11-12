@@ -28,4 +28,14 @@ export const apiClient = {
     });
     return handle<T>(res);
   },
+  put: async <T>(path: string, body?: unknown, init?: RequestInit) => {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: "include",
+    });
+    return handle<T>(res);
+  },
 };
