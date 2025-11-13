@@ -17,3 +17,16 @@ export async function fetchUserBiases(token: string) {
     },
   })
 }
+
+export type UpdateUserBiasPayload = {
+  tagId: number | string
+  score: number
+}
+
+export async function updateUserBias(token: string, payload: UpdateUserBiasPayload) {
+  return apiClient.put<UserBiasResponse>("/bias", payload, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+}

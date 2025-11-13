@@ -53,7 +53,7 @@ import {
 import type { UserAddressResponse } from "@/services/addresses"
 import { fetchAllTags } from "@/services/tags"
 import type { TagResponse } from "@/services/tags"
-import { fetchUserBiases } from "@/services/biases"
+import { fetchUserBiases, updateUserBias } from "@/services/biases"
 import type { UserBiasResponse } from "@/services/biases"
 import type { Address, Bias, Category, Tag, User } from "@/types"
 
@@ -147,6 +147,9 @@ export default function ProfilePage() {
   const [preferencesError, setPreferencesError] = useState<string | null>(null)
   const [isBiasLoading, setIsBiasLoading] = useState(false)
   const [biasError, setBiasError] = useState<string | null>(null)
+  const [initialBiasScores, setInitialBiasScores] = useState<Record<string, number>>({})
+  const [pendingBiasChanges, setPendingBiasChanges] = useState<Record<string, number>>({})
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -286,12 +289,20 @@ export default function ProfilePage() {
         }
         const data = await fetchUserBiases(token)
         if (!isMounted) return
-        setUser((currentUser) => {
-          const normalizedBiases = data
-            .map((bias) => mapApiBiasToClient(bias, currentUser.id))
-            .filter((bias): bias is Bias => Boolean(bias))
-          return { ...currentUser, bias: normalizedBiases }
-        })
+        const fallbackUserId = user.id || DEFAULT_USER.id
+        const normalizedBiases = data
+          .map((bias) => mapApiBiasToClient(bias, fallbackUserId))
+          .filter((bias): bias is Bias => Boolean(bias))
+        const baselineMap = normalizedBiases.reduce<Record<string, number>>((acc, bias) => {
+          acc[bias.tagId] = bias.score
+          return acc
+        }, {})
+        setInitialBiasScores(baselineMap)
+        setPendingBiasChanges({})
+        setUser((currentUser) => ({
+          ...currentUser,
+          bias: normalizedBiases,
+        }))
       } catch (error) {
         if (!isMounted) return
         const message =
@@ -329,6 +340,17 @@ export default function ProfilePage() {
         })
       }
       return { ...currentUser, bias: newBias }
+    })
+
+    const baselineScore = initialBiasScores[tagId] ?? 3
+    setPendingBiasChanges((prev) => {
+      const next = { ...prev }
+      if (baselineScore === newScore) {
+        delete next[tagId]
+      } else {
+        next[tagId] = newScore
+      }
+      return next
     })
   }
 
@@ -544,6 +566,80 @@ export default function ProfilePage() {
       })
     } finally {
       setIsSavingProfile(false)
+    }
+  }
+
+  const handleSavePreferences = async () => {
+    const pendingEntries = Object.entries(pendingBiasChanges)
+    if (pendingEntries.length === 0) {
+      toast({
+        title: "Không có thay đổi",
+        description: "Bạn chưa điều chỉnh khẩu vị nào.",
+      })
+      return
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Không thể lưu khẩu vị",
+        description: "Vui lòng đăng nhập lại để tiếp tục.",
+      })
+      return
+    }
+
+    setIsSavingPreferences(true)
+    try {
+      const apiResponses: Record<string, UserBiasResponse | undefined> = {}
+      for (const [tagId, score] of pendingEntries) {
+        const numericTagId = Number(tagId)
+        const payloadTagId = Number.isNaN(numericTagId) ? tagId : numericTagId
+        const response = await updateUserBias(token, { tagId: payloadTagId, score })
+        apiResponses[tagId] = response
+      }
+
+      setInitialBiasScores((prev) => {
+        const updated = { ...prev }
+        for (const [tagId, score] of pendingEntries) {
+          updated[tagId] = score
+        }
+        return updated
+      })
+      setPendingBiasChanges({})
+
+      setUser((currentUser) => {
+        const updatedBiases = currentUser.bias.map((bias) => {
+          const response = apiResponses[bias.tagId]
+          if (response?.id !== undefined && response?.id !== null) {
+            return { ...bias, id: String(response.id) }
+          }
+          return bias
+        })
+        return { ...currentUser, bias: updatedBiases }
+      })
+
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã lưu tùy chọn thành công!</span>
+          </div>
+        ),
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Không thể cập nhật khẩu vị. Vui lòng thử lại."
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
+    } finally {
+      setIsSavingPreferences(false)
     }
   }
 
@@ -869,19 +965,10 @@ export default function ProfilePage() {
             <div className="mt-8 border-t pt-6">
               <Button
                 className="bg-green-700 hover:bg-green-800"
-                onClick={() => {
-                  toast({
-                    variant: "success",
-                    title: (
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        <span className="font-medium">Đã cập nhật khẩu vị thành công!</span>
-                      </div>
-                    ),
-                  })
-                }}
+                onClick={handleSavePreferences}
+                disabled={isSavingPreferences}
               >
-                Lưu tùy chọn
+                {isSavingPreferences ? "Đang lưu..." : "Lưu tùy chọn"}
               </Button>
             </div>
           </div>
