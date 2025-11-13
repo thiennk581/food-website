@@ -9,8 +9,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Star, RefreshCw } from "lucide-react"
 import { Search, MoreVertical, Plus, CheckCircle2 } from "lucide-react"
-import type { Dish } from "@/types"
-import { mockDishes, mockRestaurants, mockTags, mockCategories } from "@/lib/mock-data"
+import type { Dish, AdminDish } from "@/types"
+import { mockRestaurants, mockTags, mockCategories } from "@/lib/mock-data"
+import { fetchAdminDishes } from "@/services/dishes"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -98,7 +99,32 @@ export default function FoodsPage() {
     }
   }
 
-  const dishes: Dish[] = mockDishes
+  const [dishes, setDishes] = useState<AdminDish[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    setIsLoading(true)
+    setLoadError(null)
+    fetchAdminDishes()
+      .then((data) => {
+        if (isMounted) {
+          setDishes(data)
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          setLoadError(error instanceof Error ? error.message : "Không thể tải danh sách món ăn.")
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -106,11 +132,10 @@ export default function FoodsPage() {
     const min = clean(minPrice) ? Number(clean(minPrice)) : undefined
     const max = clean(maxPrice) ? Number(clean(maxPrice)) : undefined
     return dishes.filter((d) => {
-      const restaurant = mockRestaurants.find(r => r.id === d.restaurantId)
+      const restaurantName = "restaurantName" in d ? d.restaurantName : mockRestaurants.find(r => r.id === (d as Dish).restaurantId)?.name
       const matchesText = !q || (
         d.name.toLowerCase().includes(q) ||
-        restaurant?.name.toLowerCase().includes(q) ||
-        d.category.toLowerCase().includes(q)
+        restaurantName?.toLowerCase().includes(q)
       )
       const matchesPrice = (min === undefined || d.price >= min) && (max === undefined || d.price <= max)
       const matchesStatus = status === "all" || (status === "available" ? d.isAvailable : !d.isAvailable)
@@ -143,7 +168,10 @@ export default function FoodsPage() {
   useEffect(() => { setPage(1) }, [searchQuery])
   useEffect(() => { if (page > totalPages) setPage(totalPages) }, [totalPages, page])
 
-  const getRestaurantName = (id: string) => mockRestaurants.find(r => r.id === id)?.name || "-"
+  const getRestaurantName = (dish: AdminDish | Dish) => {
+    if ("restaurantName" in dish) return dish.restaurantName
+    return mockRestaurants.find((r) => r.id === dish.restaurantId)?.name || "-"
+  }
 
   return (
     <div className="space-y-8 px-18 py-10 bg-background flex-1">
@@ -419,13 +447,29 @@ export default function FoodsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {loadError && (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-destructive">
+                  {loadError}
+                </TableCell>
+              </TableRow>
+            )}
+            {!loadError && filtered.length === 0 && !isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                   Không có món ăn phù hợp với bộ lọc hiện tại
                 </TableCell>
               </TableRow>
-            ) : (
+            )}
+            {!loadError && isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                  Đang tải danh sách...
+                </TableCell>
+              </TableRow>
+            )}
+            {!loadError &&
+              !isLoading &&
               paged.map((d) => (
                 <TableRow className="hover:bg-muted/40" key={d.id}>
                   <TableCell>
@@ -435,7 +479,7 @@ export default function FoodsPage() {
                     <span className="text-sm sm:text-base font-semibold leading-tight truncate" title={d.name}>{d.name}</span>
                   </TableCell>
                   <TableCell className="max-w-[300px]">
-                    <span className="truncate" title={getRestaurantName(d.restaurantId)}>{getRestaurantName(d.restaurantId)}</span>
+                    <span className="truncate" title={getRestaurantName(d)}>{getRestaurantName(d)}</span>
                   </TableCell>
                   <TableCell>
                     {d.price.toLocaleString("vi-VN")}₫
@@ -470,8 +514,7 @@ export default function FoodsPage() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+              ))}
           </TableBody>
         </Table>
       </div>

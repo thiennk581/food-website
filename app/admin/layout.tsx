@@ -101,7 +101,6 @@ export default function AdminLayout({
     { href: "/admin/users", label: "Người dùng", icon: Users },
     { href: "/admin/foods", label: "Món ăn", icon: UtensilsCrossed },
     { href: "/admin/restaurants", label: "Quán ăn", icon: Home },
-    { href: "/admin/reviews", label: "Đánh giá", icon: BarChart3 },
   ];
 
   const bottomNavItems = [

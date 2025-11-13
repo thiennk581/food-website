@@ -65,6 +65,16 @@ export interface Dish {
   tags: string[]
 }
 
+export interface AdminDish {
+  id: string
+  name: string
+  price: number
+  rating: number
+  image: string
+  isAvailable: boolean
+  restaurantName: string
+}
+
 // Cart Types
 export interface CartItem {
   dish: Dish
