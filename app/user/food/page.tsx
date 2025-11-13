@@ -25,6 +25,7 @@ import {
   dishMetadata,
   type DishFilterOption,
 } from "@/lib/mock-data"
+import { fetchAllTags } from "@/services/tags"
 import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -49,6 +50,22 @@ const DEFAULT_DISH_META = {
   mainIngredients: [] as string[],
   cookMethods: [] as string[],
   flavorProfiles: [] as string[],
+}
+
+type FilterKey = "cuisine" | "ingredient" | "method" | "flavor"
+
+const FILTER_CATEGORY_LABELS: Record<FilterKey, string> = {
+  cuisine: "Ẩm thực",
+  ingredient: "Nguyên liệu chính",
+  method: "Phương pháp chế biến",
+  flavor: "Hương vị",
+}
+
+const DEFAULT_FILTER_OPTIONS: Record<FilterKey, DishFilterOption[]> = {
+  cuisine: cuisineOptions,
+  ingredient: ingredientOptions,
+  method: methodOptions,
+  flavor: flavorOptions,
 }
 
 type FilterSelectProps = {
@@ -153,6 +170,62 @@ export default function FoodPage() {
   const [selectedRatingFilter, setSelectedRatingFilter] = useState<number>(0)
   const REVIEWS_PER_PAGE = 3
   const [visibleReviewCount, setVisibleReviewCount] = useState(REVIEWS_PER_PAGE)
+  const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS)
+  const [filtersLoading, setFiltersLoading] = useState(false)
+  const [filtersError, setFiltersError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    const loadFilters = async () => {
+      setFiltersLoading(true)
+      setFiltersError(null)
+      try {
+        const tags = await fetchAllTags()
+        if (!isMounted) return
+        const grouped = {
+          cuisine: [] as DishFilterOption[],
+          ingredient: [] as DishFilterOption[],
+          method: [] as DishFilterOption[],
+          flavor: [] as DishFilterOption[],
+        }
+        tags.forEach((tag) => {
+          const categoryName = tag.category?.name?.trim().toLowerCase()
+          const matchEntry = (Object.entries(FILTER_CATEGORY_LABELS) as [FilterKey, string][])
+            .find(([, label]) => label.toLowerCase() === categoryName)
+          if (!matchEntry) return
+          const [key] = matchEntry
+          grouped[key].push({
+            label: tag.name.trim(),
+            value: tag.name.trim(),
+          })
+        })
+
+        const merged = {} as Record<FilterKey, DishFilterOption[]>
+        ;(Object.keys(DEFAULT_FILTER_OPTIONS) as FilterKey[]).forEach((key) => {
+          const uniqueMap = new Map<string, DishFilterOption>()
+          grouped[key].forEach((option) => {
+            if (!uniqueMap.has(option.value)) {
+              uniqueMap.set(option.value, option)
+            }
+          })
+          merged[key] = [
+            DEFAULT_FILTER_OPTIONS[key][0],
+            ...Array.from(uniqueMap.values()),
+          ]
+        })
+        setFilterOptions(merged)
+      } catch (error) {
+        if (!isMounted) return
+        setFiltersError("Không thể tải bộ lọc. Vui lòng thử lại sau.")
+      } finally {
+        if (isMounted) setFiltersLoading(false)
+      }
+    }
+    loadFilters()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
 
   const filteredDishes = useMemo(() => {
@@ -313,25 +386,25 @@ export default function FoodPage() {
           <FilterSelect
             label="Ẩm thực"
             value={selectedCuisine}
-            options={cuisineOptions}
+            options={filterOptions.cuisine}
             onValueChange={setSelectedCuisine}
           />
           <FilterSelect
             label="Nguyên liệu chính"
             value={selectedIngredient}
-            options={ingredientOptions}
+            options={filterOptions.ingredient}
             onValueChange={setSelectedIngredient}
           />
           <FilterSelect
             label="Phương pháp chế biến"
             value={selectedMethod}
-            options={methodOptions}
+            options={filterOptions.method}
             onValueChange={setSelectedMethod}
           />
           <FilterSelect
             label="Hương vị"
             value={selectedFlavor}
-            options={flavorOptions}
+            options={filterOptions.flavor}
             onValueChange={setSelectedFlavor}
           />
           <div className="xl:col-span-1">
@@ -356,6 +429,12 @@ export default function FoodPage() {
             </Tooltip>
           </TooltipProvider>
         </div>
+        {filtersLoading && (
+          <p className="mt-2 text-sm text-muted-foreground">Đang tải bộ lọc...</p>
+        )}
+        {filtersError && (
+          <p className="mt-2 text-sm text-destructive">{filtersError}</p>
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
