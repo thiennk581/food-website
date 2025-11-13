@@ -1,16 +1,29 @@
 import { apiClient } from "@/lib/api-client"
-import type { AdminDish } from "@/types"
+import type { AdminDish, Dish } from "@/types"
 
-type DishApiResponse = {
+export type DishApiResponse = {
   id: number | string
   name: string
+  description?: string
   price: number
   url?: string
   rating?: number
+  totalReviews?: number
   available?: boolean
+  tags?: {
+    id?: number | string
+    name: string
+    category?: {
+      id?: number | string
+      name?: string
+    }
+  }[]
   restaurant?: {
     id?: number | string
     name?: string
+    address?: string
+    phoneNumber?: string
+    available?: boolean
   }
 }
 
@@ -20,7 +33,7 @@ function getAuthHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-function mapDish(dish: DishApiResponse): AdminDish {
+function mapAdminDish(dish: DishApiResponse): AdminDish {
   return {
     id: String(dish.id),
     name: dish.name,
@@ -32,8 +45,12 @@ function mapDish(dish: DishApiResponse): AdminDish {
   }
 }
 
-export async function fetchAdminDishes(): Promise<AdminDish[]> {
+export async function fetchDishesRaw(): Promise<DishApiResponse[]> {
   const headers = getAuthHeaders()
-  const data = await apiClient.get<DishApiResponse[]>("/dishes", { headers })
-  return data.map(mapDish)
+  return apiClient.get<DishApiResponse[]>("/dishes", { headers })
+}
+
+export async function fetchAdminDishes(): Promise<AdminDish[]> {
+  const data = await fetchDishesRaw()
+  return data.map(mapAdminDish)
 }

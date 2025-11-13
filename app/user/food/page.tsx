@@ -26,6 +26,7 @@ import {
   type DishFilterOption,
 } from "@/lib/mock-data"
 import { fetchAllTags } from "@/services/tags"
+import { fetchDishesRaw, type DishApiResponse } from "@/services/dishes"
 import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -67,6 +68,16 @@ const DEFAULT_FILTER_OPTIONS: Record<FilterKey, DishFilterOption[]> = {
   method: methodOptions,
   flavor: flavorOptions,
 }
+
+const CATEGORY_KEY_BY_NAME: Record<string, FilterKey> = Object.entries(
+  FILTER_CATEGORY_LABELS,
+).reduce(
+  (acc, [key, label]) => {
+    acc[label.toLowerCase()] = key as FilterKey
+    return acc
+  },
+  {} as Record<string, FilterKey>,
+)
 
 type FilterSelectProps = {
   label: string
@@ -153,6 +164,13 @@ const PriceRangeFilter = ({ minPrice, maxPrice, onMinPriceChange, onMaxPriceChan
 }
 
 export default function FoodPage() {
+  const [dishes, setDishes] = useState<Dish[]>(mockDishes)
+  const [dishMetaMap, setDishMetaMap] = useState<Record<string, typeof DEFAULT_DISH_META>>(dishMetadata)
+  const [restaurantInfoMap, setRestaurantInfoMap] = useState<
+    Record<string, { name: string; address?: string; phone?: string }>
+  >({})
+  const [dishesLoading, setDishesLoading] = useState(false)
+  const [dishesError, setDishesError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCuisine, setSelectedCuisine] = useState("all")
   const [selectedIngredient, setSelectedIngredient] = useState("all")
@@ -174,6 +192,86 @@ export default function FoodPage() {
   const [filtersLoading, setFiltersLoading] = useState(false)
   const [filtersError, setFiltersError] = useState<string | null>(null)
 
+  useEffect(() => {
+    let isMounted = true
+    const loadDishes = async () => {
+      setDishesLoading(true)
+      setDishesError(null)
+      try {
+        const data = await fetchDishesRaw()
+        if (!isMounted) return
+        const mappedDishes: Dish[] = data.map((dish) => {
+          const restaurantId =
+            dish.restaurant?.id !== undefined && dish.restaurant?.id !== null
+              ? String(dish.restaurant.id)
+              : `rest-${dish.id}`
+          return {
+            id: String(dish.id),
+            restaurantId,
+            name: dish.name,
+            description: dish.description ?? "",
+            price: Number(dish.price ?? 0),
+            image: dish.url || "/placeholder.svg",
+            category: dish.restaurant?.name ?? "Món ăn",
+            rating: typeof dish.rating === "number" ? dish.rating : 0,
+            totalReviews: dish.totalReviews ?? 0,
+            isAvailable: Boolean(dish.available ?? true),
+            spicyLevel: "none",
+            tags: (dish.tags ?? []).map((tag) => tag.name.trim()),
+          }
+        })
+
+        const meta: Record<string, typeof DEFAULT_DISH_META> = {}
+        const restaurantMap: Record<string, { name: string; address?: string; phone?: string }> = {}
+
+        data.forEach((dish) => {
+          const dishId = String(dish.id)
+          const baseMeta = {
+            cuisine: DEFAULT_DISH_META.cuisine,
+            mainIngredients: [] as string[],
+            cookMethods: [] as string[],
+            flavorProfiles: [] as string[],
+          }
+          ;(dish.tags ?? []).forEach((tag) => {
+            const normalizedCategory = tag.category?.name?.trim().toLowerCase() ?? ""
+            const key = CATEGORY_KEY_BY_NAME[normalizedCategory]
+            if (!key) return
+            const value = tag.name.trim()
+            if (key === "cuisine") {
+              baseMeta.cuisine = value
+            } else if (key === "ingredient") {
+              if (!baseMeta.mainIngredients.includes(value)) baseMeta.mainIngredients.push(value)
+            } else if (key === "method") {
+              if (!baseMeta.cookMethods.includes(value)) baseMeta.cookMethods.push(value)
+            } else if (key === "flavor") {
+              if (!baseMeta.flavorProfiles.includes(value)) baseMeta.flavorProfiles.push(value)
+            }
+          })
+          meta[dishId] = baseMeta
+          if (dish.restaurant?.name) {
+            restaurantMap[dishId] = {
+              name: dish.restaurant.name,
+              address: dish.restaurant.address,
+              phone: dish.restaurant.phoneNumber,
+            }
+          }
+        })
+
+        setDishes(mappedDishes)
+        setDishMetaMap(meta)
+        setRestaurantInfoMap(restaurantMap)
+      } catch (error) {
+        if (!isMounted) return
+        setDishesError("Không thể tải danh sách món ăn. Đang hiển thị dữ liệu mẫu.")
+      } finally {
+        if (isMounted) setDishesLoading(false)
+      }
+    }
+    loadDishes()
+    return () => {
+      isMounted = false
+    }
+  }, [])
   useEffect(() => {
     let isMounted = true
     const loadFilters = async () => {
@@ -229,8 +327,8 @@ export default function FoodPage() {
 
 
   const filteredDishes = useMemo(() => {
-    return mockDishes.filter((dish) => {
-      const meta = dishMetadata[dish.id] ?? DEFAULT_DISH_META
+    return dishes.filter((dish) => {
+      const meta = dishMetaMap[dish.id] ?? dishMetadata[dish.id] ?? DEFAULT_DISH_META
       const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesCuisine = selectedCuisine === "all" || meta.cuisine === selectedCuisine
       const matchesIngredient =
@@ -260,7 +358,7 @@ export default function FoodPage() {
         dish.isAvailable
       )
     })
-  }, [searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
+  }, [dishes, dishMetaMap, searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -357,8 +455,11 @@ export default function FoodPage() {
     setMaxPrice("")
   }
 
-  const getRestaurant = (restaurantId: string) => {
-    return mockRestaurants.find((r) => r.id === restaurantId)
+  const getRestaurant = (dish: Dish) => {
+    if (restaurantInfoMap[dish.id]) {
+      return restaurantInfoMap[dish.id]
+    }
+    return mockRestaurants.find((r) => r.id === dish.restaurantId)
   }
 
   return (
@@ -436,13 +537,23 @@ export default function FoodPage() {
           <p className="mt-2 text-sm text-destructive">{filtersError}</p>
         )}
       </div>
+      {dishesError && (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {dishesError}
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Dishes Grid */}
         <div className="flex flex-col gap-6">
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {dishesLoading && paginatedDishes.length === 0 && (
+              <div className="col-span-full rounded-xl border border-dashed border-muted-foreground/40 p-8 text-center text-sm text-muted-foreground">
+                Đang tải danh sách món ăn...
+              </div>
+            )}
             {paginatedDishes.map((dish) => {
-              const restaurant = getRestaurant(dish.restaurantId)
+              const restaurant = getRestaurant(dish)
               const isSelected = selectedDish?.id === dish.id
               return (
                 <Card
@@ -473,15 +584,18 @@ export default function FoodPage() {
                     <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <h3 className="line-clamp-1 text-lg font-semibold text-card-foreground">{dish.name}</h3>
-                          {restaurant && <p className="text-xs text-muted-foreground line-clamp-1">{restaurant.name}</p>}
+                          <h3 className="line-clamp-1 text-xl font-bold text-card-foreground">{dish.name}</h3>
+                          {restaurant && (
+                            <p className="text-sm font-medium text-muted-foreground line-clamp-1">
+                              {restaurant.name}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 text-sm text-amber-500 flex-shrink-0">
+                        <div className="flex items-center gap-1 text-base font-semibold text-amber-500 flex-shrink-0">
                           <Star className="h-4 w-4 fill-current" />
-                          <span className="font-semibold">{dish.rating}</span>
+                          <span>{dish.rating.toFixed(1)}</span>
                         </div>
                       </div>
-                      <p className="min-h-[2.5rem] text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
                       <div className="mt-auto flex w-full flex-nowrap gap-2 overflow-hidden">
                         {dish.tags.map((tag) => (
                           <Badge
@@ -576,11 +690,11 @@ export default function FoodPage() {
                     </div>
                   </div>
                   {(() => {
-                    const restaurant = getRestaurant(selectedDish.restaurantId)
+                    const restaurant = getRestaurant(selectedDish)
                     if (!restaurant) return null
                     return (
                       <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="text-sm font-semibold text-foreground">{restaurant.name}</p>
+                        <p className="text-base font-semibold text-foreground">{restaurant.name}</p>
                         <div className="flex items-start gap-2 text-xs text-muted-foreground">
                           <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                           <span>{restaurant.address}</span>
