@@ -12,8 +12,14 @@ function mapRestaurant(r: any): Restaurant {
   };
 }
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function fetchRestaurants(): Promise<Restaurant[]> {
-  const data = await apiClient.get<any[]>("/restaurants");
+  const data = await apiClient.get<any[]>("/restaurants", { headers: getAuthHeaders() });
   return data.map(mapRestaurant);
 }
 
@@ -29,6 +35,6 @@ export async function createRestaurant(input: CreateRestaurantInput): Promise<Re
     address: input.address,
     phoneNumber: input.phone,
   };
-  const data = await apiClient.post<any>("/restaurants", payload);
+  const data = await apiClient.post<any>("/restaurants", payload, { headers: getAuthHeaders() });
   return mapRestaurant(data);
 }

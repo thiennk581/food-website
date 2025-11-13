@@ -32,6 +32,23 @@ import {
 } from "lucide-react";
 import { User } from "@/types";
 
+const createAdminUserFromStorage = (data: any): User => {
+  return {
+    id: data?.id ? String(data.id) : `admin_${Date.now()}`,
+    name: data?.name ?? "Admin",
+    email: data?.email ?? "",
+    phone: data?.phone ?? "",
+    gender: (data?.gender as User["gender"]) ?? "other",
+    birthdate: data?.birthdate ?? "",
+    avatarUrl: data?.avatarUrl,
+    roleName: "ADMIN",
+    createdAt: data?.createdAt ?? new Date().toISOString(),
+    isActive: data?.isActive ?? true,
+    bias: Array.isArray(data?.bias) ? data.bias : [],
+    address: Array.isArray(data?.address) ? data.address : [],
+  };
+};
+
 export default function AdminLayout({
   children,
 }: {
@@ -42,17 +59,40 @@ export default function AdminLayout({
   const [user, setUser] = useState<User | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // useEffect(() => {
-  //   const currentUser = authService.getCurrentUser();
-  //   if (!currentUser || currentUser.roleName !== "ADMIN") {
-  //     router.push("/login");
-  //   } else {
-  //     setUser(currentUser as User);
-  //   }
-  // }, [router]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedUserString =
+      localStorage.getItem("food_ordering_user") ?? localStorage.getItem("user");
+    const storedRole = localStorage.getItem("roleName");
+
+    if (!storedUserString) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedUserString) as User | { role?: string };
+      const roleFromUser =
+        (parsed as any)?.roleName ?? (parsed as any)?.role ?? storedRole ?? "";
+      if (String(roleFromUser).toUpperCase() !== "ADMIN") {
+        router.replace("/login");
+        return;
+      }
+      setUser(createAdminUserFromStorage(parsed));
+    } catch (error) {
+      console.error("Failed to parse stored admin user", error);
+      router.replace("/login");
+    }
+  }, [router]);
 
   const handleLogout = () => {
-    // authService.logout();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      localStorage.removeItem("roleName");
+      localStorage.removeItem("food_ordering_user");
+      localStorage.removeItem("user");
+    }
     router.push("/login");
   };
 
