@@ -17,7 +17,6 @@ import { useCart } from "@/hooks/use-cart"
 import {
   mockDishes,
   mockRestaurants,
-  allMockReviews,
   cuisineOptions,
   ingredientOptions,
   methodOptions,
@@ -27,6 +26,7 @@ import {
 } from "@/lib/mock-data"
 import { fetchAllTags } from "@/services/tags"
 import { fetchDishesRaw, type DishApiResponse } from "@/services/dishes"
+import { fetchDishReviews, type DishReviewResponse } from "@/services/reviews"
 import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -37,7 +37,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import type { Dish, Review } from "@/types"
+import type { Dish } from "@/types"
 import {
   Tooltip,
   TooltipContent,
@@ -191,6 +191,9 @@ export default function FoodPage() {
   const [filterOptions, setFilterOptions] = useState(DEFAULT_FILTER_OPTIONS)
   const [filtersLoading, setFiltersLoading] = useState(false)
   const [filtersError, setFiltersError] = useState<string | null>(null)
+  const [reviewsByDish, setReviewsByDish] = useState<Record<string, DishReviewResponse[]>>({})
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -398,7 +401,7 @@ export default function FoodPage() {
   useEffect(() => {
     if (!paginatedDishes.length) return
     if (!selectedDishId || !paginatedDishes.some((dish) => dish.id === selectedDishId)) {
-      setSelectedDishId(paginatedDishes[0]?.id)
+      setSelectedDishId(paginatedDishes[0]?.id ?? null)
     }
   }, [paginatedDishes, selectedDishId])
 
@@ -407,17 +410,45 @@ export default function FoodPage() {
     [filteredDishes, selectedDishId],
   )
 
+  useEffect(() => {
+    if (!selectedDishId) return
+    if (reviewsByDish[selectedDishId]) return
+    let cancelled = false
+    setReviewsLoading(true)
+    setReviewsError(null)
+    fetchDishReviews(selectedDishId)
+      .then((data) => {
+        if (cancelled) return
+        setReviewsByDish((prev) => ({ ...prev, [selectedDishId]: data }))
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setReviewsError(
+          error instanceof Error ? error.message : "Không thể tải đánh giá. Vui lòng thử lại.",
+        )
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedDishId, reviewsByDish])
+
+  const getDishReviews = (dishId: string) => reviewsByDish[dishId] ?? []
+
   const filteredReviews = useMemo(() => {
     if (!selectedDish) return []
-    const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
+    const reviews = getDishReviews(selectedDish.id)
 
     if (selectedRatingFilter === 0) {
-      return allReviewsForDish
+      return reviews
     }
 
     // Lọc theo số sao chính xác
-    return allReviewsForDish.filter(review => Math.floor(review.rating) === selectedRatingFilter)
-  }, [selectedDish, selectedRatingFilter])
+    return reviews.filter((review) => Math.floor(review.rating ?? 0) === selectedRatingFilter)
+  }, [selectedDish, selectedRatingFilter, reviewsByDish])
 
   const visibleReviews = useMemo(() => {
     return filteredReviews.slice(0, visibleReviewCount)
@@ -425,11 +456,11 @@ export default function FoodPage() {
 
   const overallRating = useMemo(() => {
     if (!selectedDish) return null
-    const allReviewsForDish = allMockReviews.filter((review) => review.dishId === selectedDish.id)
-    if (!allReviewsForDish.length) return null
-    const total = allReviewsForDish.reduce((sum, review) => sum + review.rating, 0)
-    return (total / allReviewsForDish.length).toFixed(1)
-  }, [selectedDish])
+    const reviews = getDishReviews(selectedDish.id)
+    if (!reviews.length) return null
+    const total = reviews.reduce((sum, review) => sum + (review.rating ?? 0), 0)
+    return (total / reviews.length).toFixed(1)
+  }, [selectedDish, reviewsByDish])
 
   const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
@@ -716,7 +747,7 @@ export default function FoodPage() {
                     Đánh giá
                     {selectedDish && (
                       <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        ({allMockReviews.filter(r => r.dishId === selectedDish.id).length} lượt)
+                        ({getDishReviews(selectedDish.id).length} lượt)
                       </span>
                     )}
                   </h3>
@@ -745,28 +776,52 @@ export default function FoodPage() {
                   </Select>
                 </div>
 
+                {reviewsError && (
+                  <div className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    {reviewsError}
+                  </div>
+                )}
                 <div className="max-h-[450px] overflow-y-auto p-4">
                   <div className="flex flex-col gap-3">
-                    {visibleReviews.length > 0 ? (
-                      visibleReviews.map((review) => (
-                        <div key={review.id} className="rounded-lg border border-border bg-muted/30 p-3">
+                    {reviewsLoading && (
+                      <div className="py-6 text-center text-sm text-muted-foreground">
+                        Đang tải đánh giá...
+                      </div>
+                    )}
+                    {!reviewsLoading && visibleReviews.length > 0 ? (
+                      visibleReviews.map((review, index) => (
+                        <div
+                          key={`${selectedDish.id}-${index}`}
+                          className="rounded-lg border border-border bg-muted/30 p-3"
+                        >
                           <div className="mb-2 flex items-center justify-between">
-                            <p className="font-medium text-card-foreground">{review.userName}</p>
+                            <p className="font-medium text-card-foreground">
+                              {review.userName ?? `Người dùng ${index + 1}`}
+                            </p>
                             <div className="flex items-center gap-1 text-sm font-semibold text-amber-500">
                               <Star className="h-4 w-4 fill-current" />
-                              <span>{review.rating.toFixed(1)}</span>
+                              <span>{(review.rating ?? 0).toFixed(1)}</span>
                             </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">{review.comment}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {review.comment ?? "Không có nội dung."}
+                          </p>
                           <p className="mt-3 text-xs text-muted-foreground">
-                            {new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short" }).format(new Date(review.createdAt))}
+                            {review.createdAt
+                              ? new Intl.DateTimeFormat("vi-VN", {
+                                  dateStyle: "short",
+                                  timeStyle: "short",
+                                }).format(new Date(review.createdAt))
+                              : "Thời gian không xác định"}
                           </p>
                         </div>
                       ))
                     ) : (
-                      <div className="py-8 text-center text-sm text-muted-foreground">
-                        Không có đánh giá nào phù hợp.
-                      </div>
+                      !reviewsLoading && (
+                        <div className="py-8 text-center text-sm text-muted-foreground">
+                          Không có đánh giá nào phù hợp.
+                        </div>
+                      )
                     )}
                   </div>
 
@@ -774,9 +829,10 @@ export default function FoodPage() {
                     <div className="mt-4 text-center">
                       <Button
                         variant="ghost"
-                        onClick={() => setVisibleReviewCount(prev => prev + REVIEWS_PER_PAGE)}
+                        onClick={() => setVisibleReviewCount((prev) => prev + REVIEWS_PER_PAGE)}
                       >
-                        Xem thêm {Math.min(REVIEWS_PER_PAGE, filteredReviews.length - visibleReviewCount)} đánh giá
+                        Xem thêm{" "}
+                        {Math.min(REVIEWS_PER_PAGE, filteredReviews.length - visibleReviewCount)} đánh giá
                       </Button>
                     </div>
                   )}
