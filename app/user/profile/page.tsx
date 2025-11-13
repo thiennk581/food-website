@@ -44,7 +44,13 @@ import { AddressDialog } from "@/components/address-dialog"
 import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { cn } from "@/lib/utils"
 import { fetchUserProfile, updateUserProfile } from "@/services/users"
-import { fetchUserAddresses, deleteUserAddress } from "@/services/addresses"
+import {
+  fetchUserAddresses,
+  deleteUserAddress,
+  createUserAddress,
+  updateUserAddress,
+} from "@/services/addresses"
+import type { UserAddressResponse } from "@/services/addresses"
 import type { Address, Bias, User } from "@/types"
 
 const DEFAULT_USER: User =
@@ -63,6 +69,20 @@ const DEFAULT_USER: User =
         bias: [],
         address: [],
       })
+
+const mapApiAddressToClient = (
+  apiAddress: UserAddressResponse,
+  fallbackUserId: string,
+  fallbackId?: string,
+): Address => ({
+  id:
+    apiAddress.id !== undefined && apiAddress.id !== null
+      ? String(apiAddress.id)
+      : fallbackId ?? `addr-${Date.now()}`,
+  address: apiAddress.address,
+  isDefault: Boolean(apiAddress.isDefault),
+  userId: apiAddress.user?.id ? String(apiAddress.user.id) : fallbackUserId,
+})
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User>(DEFAULT_USER)
@@ -162,12 +182,7 @@ export default function ProfilePage() {
 
         setUser((currentUser) => ({
           ...currentUser,
-          address: addresses.map((addr) => ({
-            id: String(addr.id),
-            address: addr.address,
-            isDefault: Boolean(addr.isDefault),
-            userId: currentUser.id,
-          })),
+          address: addresses.map((addr) => mapApiAddressToClient(addr, currentUser.id)),
         }))
       } catch (error) {
         if (!isMounted) return
@@ -208,24 +223,55 @@ export default function ProfilePage() {
     })
   }
 
-  const handleSaveAddress = (addressData: Omit<Address, "id" | "userId"> & { id?: string }) => {
-    setUser((currentUser) => {
-      let newAddresses = [...currentUser.address]
-      if (addressData.isDefault) {
-        newAddresses = newAddresses.map((addr) => ({ ...addr, isDefault: false }))
-      }
-      if (addressData.id) {
-        newAddresses = newAddresses.map((addr) =>
-          addr.id === addressData.id ? { ...addr, ...addressData } : addr,
-        )
-      } else {
-        const newAddress: Address = {
-          ...addressData,
-          id: `addr-${Date.now()}`,
-          userId: currentUser.id,
+  const handleSaveAddress = async (addressData: Omit<Address, "id" | "userId"> & { id?: string }) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Không thể lưu địa chỉ",
+        description: "Vui lòng đăng nhập lại để tiếp tục.",
+      })
+      return
+    }
+
+    if (!addressData.address.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Địa chỉ không được để trống.",
+      })
+      return
+    }
+
+    const payload = {
+      address: addressData.address.trim(),
+      isDefault: Boolean(addressData.isDefault),
+    }
+
+    try {
+      const response = addressData.id
+        ? await updateUserAddress(token, addressData.id, payload)
+        : await createUserAddress(token, payload)
+
+      setUser((currentUser) => {
+        const normalizedAddress = mapApiAddressToClient(response, currentUser.id, addressData.id)
+        const isEdit = Boolean(addressData.id)
+
+        let newAddresses = isEdit
+          ? currentUser.address.map((addr) =>
+              addr.id === normalizedAddress.id ? normalizedAddress : addr,
+            )
+          : [...currentUser.address, normalizedAddress]
+
+        if (normalizedAddress.isDefault) {
+          newAddresses = newAddresses.map((addr) =>
+            addr.id === normalizedAddress.id ? normalizedAddress : { ...addr, isDefault: false },
+          )
         }
-        newAddresses.push(newAddress)
-      }
+
+        return { ...currentUser, address: newAddresses }
+      })
+
       toast({
         variant: "success",
         title: (
@@ -235,9 +281,18 @@ export default function ProfilePage() {
           </div>
         ),
       })
-      return { ...currentUser, address: newAddresses }
-    })
-    setAddressDialogOpen(false)
+
+      setAddressDialogOpen(false)
+      setSelectedAddress(null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Không thể lưu địa chỉ. Vui lòng thử lại."
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
+    }
   }
 
   const handleDeleteAddress = async (addressId: string) => {
