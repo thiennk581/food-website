@@ -44,6 +44,7 @@ import { AddressDialog } from "@/components/address-dialog"
 import { ChangePasswordDialog } from "@/components/change-password-dialog"
 import { cn } from "@/lib/utils"
 import { fetchUserProfile, updateUserProfile } from "@/services/users"
+import { fetchUserAddresses, deleteUserAddress } from "@/services/addresses"
 import type { Address, Bias, User } from "@/types"
 
 const DEFAULT_USER: User =
@@ -83,6 +84,8 @@ export default function ProfilePage() {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addressToDelete, setAddressToDelete] = useState<Address | null>(null)
   const [isPasswordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [isAddressesLoading, setIsAddressesLoading] = useState(false)
+  const [addressesError, setAddressesError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -146,6 +149,41 @@ export default function ProfilePage() {
     }
 
     loadProfile()
+    const loadAddresses = async () => {
+      setIsAddressesLoading(true)
+      setAddressesError(null)
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+        if (!token) {
+          throw new Error("Vui lòng đăng nhập để xem sổ địa chỉ.")
+        }
+        const addresses = await fetchUserAddresses(token)
+        if (!isMounted) return
+
+        setUser((currentUser) => ({
+          ...currentUser,
+          address: addresses.map((addr) => ({
+            id: String(addr.id),
+            address: addr.address,
+            isDefault: Boolean(addr.isDefault),
+            userId: currentUser.id,
+          })),
+        }))
+      } catch (error) {
+        if (!isMounted) return
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Không thể tải sổ địa chỉ. Vui lòng thử lại sau."
+        setAddressesError(message)
+      } finally {
+        if (isMounted) {
+          setIsAddressesLoading(false)
+        }
+      }
+    }
+
+    loadAddresses()
 
     return () => {
       isMounted = false
@@ -202,21 +240,44 @@ export default function ProfilePage() {
     setAddressDialogOpen(false)
   }
 
-  const handleDeleteAddress = (addressId: string) => {
-    setUser((currentUser) => {
-      const newAddresses = currentUser.address.filter((addr) => addr.id !== addressId)
-      return { ...currentUser, address: newAddresses }
-    })
-    toast({
-      variant: "success",
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">Đã xóa địa chỉ thành công!</span>
-        </div>
-      ),
-    })
-    setDeleteDialogOpen(false)
+  const handleDeleteAddress = async (addressId: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Không thể xóa",
+        description: "Vui lòng đăng nhập lại để tiếp tục.",
+      })
+      return
+    }
+
+    try {
+      await deleteUserAddress(token, addressId)
+      setUser((currentUser) => {
+        const newAddresses = currentUser.address.filter((addr) => addr.id !== addressId)
+        return { ...currentUser, address: newAddresses }
+      })
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã xóa địa chỉ thành công!</span>
+          </div>
+        ),
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Không thể xóa địa chỉ. Vui lòng thử lại."
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: message,
+      })
+    } finally {
+      setDeleteDialogOpen(false)
+      setAddressToDelete(null)
+    }
   }
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,7 +339,7 @@ export default function ProfilePage() {
       const nextGender = responseGender ?? gender
       const nextName = response?.fullName ?? payload.fullName
       const nextPhone = response?.phoneNumber ?? payload.phoneNumber
-      const nextEmail = response?.email ?? user.email
+      const nextEmail = response?.email ?? payload.email
       const nextBirthdateString =
         response && "birthday" in response ? response.birthday : payload.birthday
       const nextBirthdateDate = nextBirthdateString ? new Date(nextBirthdateString) : undefined
@@ -386,8 +447,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" value={user.email} onChange={handleProfileChange}
-                    disabled={isProfileLoading} />
+                  <Input id="email" type="email" value={user.email} disabled readOnly />
                 </div>
                 <div className="space-y-2">
                   <Label>Ngày sinh</Label>
@@ -475,6 +535,16 @@ export default function ProfilePage() {
                 Thêm địa chỉ mới
               </Button>
             </div>
+            {addressesError && (
+              <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {addressesError}
+              </div>
+            )}
+            {isAddressesLoading && (
+              <div className="mb-4 rounded-md border border-dashed border-muted px-4 py-3 text-sm text-muted-foreground">
+                Đang tải sổ địa chỉ...
+              </div>
+            )}
             <div className="space-y-4">
               {user.address.map((addr: Address) => (
                 <div
