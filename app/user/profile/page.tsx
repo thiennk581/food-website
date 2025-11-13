@@ -169,30 +169,27 @@ export default function ProfilePage() {
         if (!isMounted) return
 
         const normalizedGender = data.gender?.toLowerCase() as User["gender"] | undefined
-        let snapshot: User | null = null
+        const nextName = data.fullName ?? ""
+        const nextPhone = data.phoneNumber ?? ""
+        const nextEmail = data.email ?? ""
+        const nextBirthdate = data.birthday ?? ""
 
-        setUser((currentUser) => {
-          const updatedUser: User = {
-            ...currentUser,
-            name: data.fullName ?? currentUser.name,
-            phone: data.phoneNumber ?? currentUser.phone,
-            email: data.email ?? currentUser.email,
-            birthdate: data.birthday ?? currentUser.birthdate,
-            gender: normalizedGender ?? currentUser.gender,
-          }
-          snapshot = updatedUser
-          return updatedUser
+        setUser((currentUser) => ({
+          ...currentUser,
+          name: nextName || currentUser.name,
+          phone: nextPhone || currentUser.phone,
+          email: nextEmail || currentUser.email,
+          birthdate: nextBirthdate || currentUser.birthdate,
+          gender: normalizedGender ?? currentUser.gender,
+        }))
+
+        setProfileData({
+          name: nextName || "",
+          phone: nextPhone || "",
         })
-
-        if (snapshot) {
-          setProfileData({
-            name: snapshot.name,
-            phone: snapshot.phone,
-          })
-          setBirthdate(snapshot.birthdate ? new Date(snapshot.birthdate) : undefined)
-          setGender(snapshot.gender)
-          setProfileError(null)
-        }
+        setBirthdate(nextBirthdate ? new Date(nextBirthdate) : undefined)
+        setGender(normalizedGender ?? DEFAULT_USER.gender)
+        setProfileError(null)
       } catch (error) {
         if (!isMounted) return
         const message =
