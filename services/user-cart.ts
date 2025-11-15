@@ -61,3 +61,15 @@ export async function removeUserCartItem(itemId: string | number): Promise<void>
   const headers = getAuthHeaders()
   await apiClient.delete(`/user-dishes/${itemId}`, { headers })
 }
+
+export async function updateUserCartItemQuantity(
+  userDishId: string | number,
+  quantity: number,
+): Promise<void> {
+  const headers = getAuthHeaders()
+  await apiClient.put(
+    "/user-dishes",
+    { userDishId, quantity },
+    { headers },
+  )
+}

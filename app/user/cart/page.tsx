@@ -1,11 +1,11 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCart } from "@/hooks/use-cart"
-import { fetchUserCartItems, removeUserCartItem } from "@/services/user-cart"
+import { fetchUserCartItems, removeUserCartItem, updateUserCartItemQuantity } from "@/services/user-cart"
 import { Minus, Plus, Trash2, ShoppingBag, PackageCheck, Ban, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -46,6 +46,11 @@ export default function CartPage() {
   const [addressError, setAddressError] = useState<string | null>(null)
   const [addressLoading, setAddressLoading] = useState(true)
   const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>(undefined)
+  const pendingQuantityUpdates = useRef<Record<string, {
+    timeout: ReturnType<typeof setTimeout>
+    userDishId: string
+    quantity: number
+  }>>({})
 
   const availableItems = cart.items.filter(item => item.dish.isAvailable)
   const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
@@ -131,8 +136,70 @@ export default function CartPage() {
     }
   }, [])
 
+  const scheduleQuantitySync = (dishId: string, userDishId: string, quantity: number) => {
+    const current = pendingQuantityUpdates.current[dishId]
+    if (current) {
+      clearTimeout(current.timeout)
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        await updateUserCartItemQuantity(userDishId, quantity)
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Không thể cập nhật số lượng",
+          description: "Vui lòng thử lại sau.",
+        })
+      } finally {
+        delete pendingQuantityUpdates.current[dishId]
+      }
+    }, 800)
+
+    pendingQuantityUpdates.current[dishId] = { timeout, quantity, userDishId }
+  }
+
+  const flushQuantityUpdates = async () => {
+    const entries = Object.entries(pendingQuantityUpdates.current)
+    pendingQuantityUpdates.current = {}
+    await Promise.all(
+      entries.map(async ([dishId, data]) => {
+        clearTimeout(data.timeout)
+        try {
+          await updateUserCartItemQuantity(data.userDishId, data.quantity)
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Không thể cập nhật số lượng",
+            description: "Vui lòng thử lại sau.",
+          })
+        }
+      }),
+    )
+  }
+
+  useEffect(() => {
+    return () => {
+      flushQuantityUpdates()
+    }
+  }, [])
+
+  const handleQuantityChange = (itemId: string, userDishId: string | undefined, quantity: number) => {
+    if (quantity <= 0) {
+      handleRemoveItem(itemId)
+      return
+    }
+    updateQuantity(itemId, quantity)
+    if (!userDishId) return
+    scheduleQuantitySync(itemId, userDishId, quantity)
+  }
+
   const handleRemoveItem = async (dishId: string) => {
     const item = cart.items.find((i) => i.dish.id === dishId)
+    const entry = pendingQuantityUpdates.current[dishId]
+    if (entry) {
+      clearTimeout(entry.timeout)
+      delete pendingQuantityUpdates.current[dishId]
+    }
     try {
       if (item?.userDishId) {
         await removeUserCartItem(item.userDishId)
@@ -158,6 +225,7 @@ export default function CartPage() {
 
   const handleClearCart = async () => {
     try {
+      await flushQuantityUpdates()
       const deletions = cart.items
         .filter((item) => item.userDishId)
         .map((item) => removeUserCartItem(item.userDishId!))
@@ -181,7 +249,7 @@ export default function CartPage() {
     }
   }
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
     if (!userInfo || !selectedAddress) {
       toast({
         variant: "destructive",
@@ -190,6 +258,7 @@ export default function CartPage() {
       })
       return
     }
+    await flushQuantityUpdates()
     console.log("Đơn hàng đã được xác nhận:", {
       user: userInfo.name,
       address: selectedAddress?.address,
@@ -280,11 +349,11 @@ export default function CartPage() {
                           <p className="text-sm text-muted-foreground mt-1">{item.dish.price.toLocaleString("vi-VN")}đ</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-md" onClick={() => updateQuantity(item.dish.id, item.quantity - 1)} disabled={!item.dish.isAvailable}>
+                          <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-md" onClick={() => handleQuantityChange(item.dish.id, item.userDishId, item.quantity - 1)} disabled={!item.dish.isAvailable}>
                             <Minus className="h-4 w-4" />
                           </Button>
                           <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                          <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-md" onClick={() => updateQuantity(item.dish.id, item.quantity + 1)} disabled={!item.dish.isAvailable}>
+                          <Button size="icon" variant="outline" className="h-8 w-8 shrink-0 rounded-md" onClick={() => handleQuantityChange(item.dish.id, item.userDishId, item.quantity + 1)} disabled={!item.dish.isAvailable}>
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
