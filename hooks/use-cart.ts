@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { CartItem, Dish } from "@/types"
 import { mockDishes } from "@/lib/mock-data"
 
@@ -33,6 +33,12 @@ export function useCart() {
     setCart(newCart)
     localStorage.setItem(CART_KEY, JSON.stringify(newCart))
   }
+
+  const replaceCartItems = useCallback((items: CartItem[]) => {
+    const newCart = { items }
+    setCart(newCart)
+    localStorage.setItem(CART_KEY, JSON.stringify(newCart))
+  }, [])
 
   const addToCart = (dish: Dish, quantity = 1, note?: string) => {
     const newItems = [...cart.items]
@@ -86,5 +92,6 @@ export function useCart() {
     clearCart,
     getTotalAmount,
     getTotalItems,
+    replaceCartItems,
   }
 }

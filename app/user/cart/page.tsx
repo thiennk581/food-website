@@ -1,10 +1,11 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCart } from "@/hooks/use-cart"
+import { fetchUserCartItems } from "@/services/user-cart"
 import { Minus, Plus, Trash2, ShoppingBag, PackageCheck, Ban, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -25,29 +26,122 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { mockUsers } from "@/lib/mock-data"
 import { useToast } from "@/hooks/use-toast"
+import { fetchUserProfile } from "@/services/users"
+import { fetchUserAddresses } from "@/services/addresses"
+import type { Address } from "@/types"
 
 export default function CartPage() {
   const router = useRouter()
-  const { cart, updateQuantity, removeFromCart, getTotalAmount, clearCart } = useCart()
+  const { cart, updateQuantity, removeFromCart, getTotalAmount, clearCart, replaceCartItems } = useCart()
   const { toast } = useToast()
 
   const [isCheckoutOpen, setCheckoutOpen] = useState(false)
-  const defaultAddress = mockUsers.address.find(addr => addr.isDefault)
-  const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>(defaultAddress?.id)
+  const [isCartLoading, setCartLoading] = useState(true)
+  const [cartError, setCartError] = useState<string | null>(null)
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string; phone: string } | null>(null)
+  const [userError, setUserError] = useState<string | null>(null)
+  const [userLoading, setUserLoading] = useState(true)
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [addressError, setAddressError] = useState<string | null>(null)
+  const [addressLoading, setAddressLoading] = useState(true)
+  const [selectedAddressId, setSelectedAddressId] = useState<string | undefined>(undefined)
 
   const availableItems = cart.items.filter(item => item.dish.isAvailable)
-  const selectedAddress = mockUsers.address.find(addr => addr.id === selectedAddressId)
+  const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
   
   const truncateAddress = (address: string | undefined, maxLength: number = 55) => {
     if (!address) return "Chọn địa chỉ"
     return address.length > maxLength ? address.substring(0, maxLength) + "..." : address
   }
 
+  useEffect(() => {
+    let isMounted = true
+    const loadCart = async () => {
+      setCartLoading(true)
+      setCartError(null)
+      try {
+        const items = await fetchUserCartItems()
+        if (!isMounted) return
+        replaceCartItems(items)
+      } catch (error) {
+        if (!isMounted) return
+        setCartError("Không thể tải giỏ hàng. Đang hiển thị dữ liệu cũ.")
+      } finally {
+        if (isMounted) setCartLoading(false)
+      }
+    }
+    loadCart()
+    return () => {
+      isMounted = false
+    }
+  }, [replaceCartItems])
+
+  useEffect(() => {
+    let isMounted = true
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    if (!token) {
+      setUserError("Vui lòng đăng nhập để xem thông tin giao hàng.")
+      setUserLoading(false)
+      setAddressLoading(false)
+      return
+    }
+
+    const loadProfile = async () => {
+      setUserLoading(true)
+      setUserError(null)
+      try {
+        const data = await fetchUserProfile({ token })
+        if (!isMounted) return
+        setUserInfo({
+          name: data.fullName ?? "",
+          email: data.email ?? "",
+          phone: data.phoneNumber ?? "",
+        })
+      } catch (error) {
+        if (!isMounted) return
+        setUserError("Không thể tải thông tin người dùng.")
+      } finally {
+        if (isMounted) setUserLoading(false)
+      }
+    }
+
+    const loadAddresses = async () => {
+      setAddressLoading(true)
+      setAddressError(null)
+      try {
+        const data = await fetchUserAddresses(token)
+        if (!isMounted) return
+        setAddresses(data)
+        const defaultAddr = data.find((addr) => addr.isDefault)
+        setSelectedAddressId(defaultAddr?.id ?? data[0]?.id)
+      } catch (error) {
+        if (!isMounted) return
+        setAddressError("Không thể tải địa chỉ giao hàng.")
+      } finally {
+        if (isMounted) setAddressLoading(false)
+      }
+    }
+
+    loadProfile()
+    loadAddresses()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const handleConfirmOrder = () => {
+    if (!userInfo || !selectedAddress) {
+      toast({
+        variant: "destructive",
+        title: "Thiếu thông tin",
+        description: "Vui lòng chọn địa chỉ và đảm bảo đã đăng nhập.",
+      })
+      return
+    }
     console.log("Đơn hàng đã được xác nhận:", {
-      user: mockUsers.name,
+      user: userInfo.name,
       address: selectedAddress?.address,
       items: availableItems,
       total: getTotalAmount(),
@@ -69,6 +163,18 @@ export default function CartPage() {
     clearCart()
 
     router.push("/user/orders")
+  }
+
+  if (isCartLoading) {
+    return (
+      <div className="container mx-auto px-4 py-16">
+        <div className="mx-auto max-w-md text-center">
+          <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
+          <h2 className="mt-4 text-2xl font-bold text-foreground">Đang tải giỏ hàng...</h2>
+          <p className="mt-2 text-muted-foreground">Vui lòng chờ trong giây lát.</p>
+        </div>
+      </div>
+    )
   }
 
   if (cart.items.length === 0) {
@@ -96,6 +202,11 @@ export default function CartPage() {
               ({cart.items.length} món)
             </span>
           </h1>
+          {cartError && (
+            <p className="mt-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {cartError}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-20 lg:grid-cols-5">
@@ -184,7 +295,15 @@ export default function CartPage() {
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <DialogTrigger asChild>
-                  <Button className="w-full h-11 text-base" disabled={availableItems.length === 0}>
+                  <Button
+                    className="w-full h-11 text-base"
+                    disabled={
+                      availableItems.length === 0 ||
+                      addressLoading ||
+                      !selectedAddress ||
+                      userLoading
+                    }
+                  >
                     Đặt hàng
                   </Button>
                 </DialogTrigger>
@@ -207,9 +326,27 @@ export default function CartPage() {
             <div className="space-y-3">
               <h4 className="text-lg font-semibold">Thông tin giao hàng</h4>
               <div className="rounded-lg border p-4 space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Họ tên:</span> <span className="font-medium text-right">{mockUsers.name}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Email:</span> <span className="font-medium text-right">{mockUsers.email}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Số điện thoại:</span> <span className="font-medium text-right">{mockUsers.phone}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Họ tên:</span>
+                  <span className="font-medium text-right">
+                    {userLoading ? "Đang tải..." : userInfo?.name || "Chưa có"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-medium text-right">
+                    {userLoading ? "Đang tải..." : userInfo?.email || "Chưa có"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Số điện thoại:</span>
+                  <span className="font-medium text-right">
+                    {userLoading ? "Đang tải..." : userInfo?.phone || "Chưa có"}
+                  </span>
+                </div>
+                {userError && (
+                  <p className="text-xs text-destructive">{userError}</p>
+                )}
                 <Separator className="my-2" />
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">Địa chỉ giao hàng:</label>
@@ -217,23 +354,29 @@ export default function CartPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="w-full">
-                          <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
+                          <Select
+                            value={selectedAddressId}
+                            onValueChange={setSelectedAddressId}
+                            disabled={addressLoading || addresses.length === 0}
+                          >
                             <SelectTrigger className="mt-1 h-auto w-full bg-white">
                               <span className="text-sm text-left">
-                                {truncateAddress(selectedAddress?.address)}
+                                {addressLoading
+                                  ? "Đang tải địa chỉ..."
+                                  : truncateAddress(selectedAddress?.address)}
                               </span>
                             </SelectTrigger>
                             <SelectContent className="max-w-xs">
-                            {mockUsers.address.map(addr => (
-                              <SelectItem 
-                                key={addr.id} 
-                                value={addr.id} 
-                                className="whitespace-normal text-sm"
-                              >
-                                <span className="block max-w-[300px]">{addr.address}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                              {addresses.map((addr) => (
+                                <SelectItem
+                                  key={addr.id}
+                                  value={addr.id}
+                                  className="whitespace-normal text-sm"
+                                >
+                                  <span className="block max-w-[300px]">{addr.address}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
                           </Select>
                         </div>
                       </TooltipTrigger>
@@ -242,6 +385,14 @@ export default function CartPage() {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+                  {addressError && (
+                    <p className="mt-2 text-xs text-destructive">{addressError}</p>
+                  )}
+                  {!addressLoading && addresses.length === 0 && !addressError && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong trang hồ sơ.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
