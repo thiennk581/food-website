@@ -5,7 +5,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCart } from "@/hooks/use-cart"
-import { fetchUserCartItems } from "@/services/user-cart"
+import { fetchUserCartItems, removeUserCartItem } from "@/services/user-cart"
 import { Minus, Plus, Trash2, ShoppingBag, PackageCheck, Ban, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -49,7 +49,7 @@ export default function CartPage() {
 
   const availableItems = cart.items.filter(item => item.dish.isAvailable)
   const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
-  
+
   const truncateAddress = (address: string | undefined, maxLength: number = 55) => {
     if (!address) return "Chọn địa chỉ"
     return address.length > maxLength ? address.substring(0, maxLength) + "..." : address
@@ -130,6 +130,56 @@ export default function CartPage() {
       isMounted = false
     }
   }, [])
+
+  const handleRemoveItem = async (dishId: string) => {
+    const item = cart.items.find((i) => i.dish.id === dishId)
+    try {
+      if (item?.userDishId) {
+        await removeUserCartItem(item.userDishId)
+      }
+      removeFromCart(dishId)
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã xóa món khỏi giỏ hàng!</span>
+          </div>
+        ),
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Không thể xóa món",
+        description: "Vui lòng thử lại sau.",
+      })
+    }
+  }
+
+  const handleClearCart = async () => {
+    try {
+      const deletions = cart.items
+        .filter((item) => item.userDishId)
+        .map((item) => removeUserCartItem(item.userDishId!))
+      await Promise.all(deletions)
+      clearCart()
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đã xóa giỏ hàng!</span>
+          </div>
+        ),
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Không thể xóa giỏ hàng",
+        description: "Vui lòng thử lại.",
+      })
+    }
+  }
 
   const handleConfirmOrder = () => {
     if (!userInfo || !selectedAddress) {
@@ -252,7 +302,12 @@ export default function CartPage() {
                             <span className="font-medium">Hết bán</span>
                           </div>
                         )}
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => removeFromCart(item.dish.id)}>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => handleRemoveItem(item.dish.id)}
+                        >
                           <Trash2 className="h-15 w-15" />
                         </Button>
                       </div>
@@ -307,7 +362,11 @@ export default function CartPage() {
                     Đặt hàng
                   </Button>
                 </DialogTrigger>
-                <Button variant="outline" className="w-full h-11 text-base bg-transparent" onClick={clearCart}>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 text-base bg-transparent"
+                  onClick={handleClearCart}
+                >
                   Xóa giỏ hàng
                 </Button>
               </CardFooter>
@@ -406,7 +465,7 @@ export default function CartPage() {
                         <p className="font-medium flex-1 pr-4 line-clamp-2">{item.dish.name}</p>
                         <p className="text-xs text-muted-foreground mt-1">{item.dish.price.toLocaleString("vi-VN")}đ</p>
                       </div>
-                      
+
                       <div className="text-right">
                         <span className="font-medium">{(item.dish.price * item.quantity).toLocaleString("vi-VN")}đ</span>
                         <p className="text-muted-foreground text-xs mt-1">SL: {item.quantity}</p>

@@ -80,6 +80,7 @@ export interface CartItem {
   dish: Dish
   quantity: number
   note?: string
+  userDishId?: string
 }
 
 export interface Cart {
