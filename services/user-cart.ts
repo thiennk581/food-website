@@ -74,6 +74,12 @@ export async function updateUserCartItemQuantity(
   )
 }
 
+export async function createOrder(addressId: string | number) {
+  const headers = getAuthHeaders()
+  const response = await apiClient.post("/orders", { addressId }, { headers })
+  return response
+}
+
 export async function addUserCartItem(
   dishId: string | number,
   quantity: number

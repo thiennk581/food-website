@@ -5,7 +5,12 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCart } from "@/hooks/use-cart"
-import { fetchUserCartItems, removeUserCartItem, updateUserCartItemQuantity } from "@/services/user-cart"
+import {
+  fetchUserCartItems,
+  removeUserCartItem,
+  updateUserCartItemQuantity,
+  createOrder,
+} from "@/services/user-cart"
 import { Minus, Plus, Trash2, ShoppingBag, PackageCheck, Ban, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -259,29 +264,32 @@ export default function CartPage() {
       return
     }
     await flushQuantityUpdates()
-    console.log("Đơn hàng đã được xác nhận:", {
-      user: userInfo.name,
-      address: selectedAddress?.address,
-      items: availableItems,
-      total: getTotalAmount(),
-    })
+    try {
+      await createOrder(selectedAddress.id)
 
-    setCheckoutOpen(false)
+      setCheckoutOpen(false)
 
-    toast({
-      variant: "success",
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">Đặt hàng thành công!</span>
-        </div>
-      ),
-      description: "Cảm ơn bạn đã mua sắm. Chúng tôi sẽ xử lý đơn hàng của bạn ngay.",
-    })
+      toast({
+        variant: "success",
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">Đặt hàng thành công!</span>
+          </div>
+        ),
+        description: "Cảm ơn bạn đã mua sắm. Chúng tôi sẽ xử lý đơn hàng của bạn ngay.",
+      })
 
-    clearCart()
+      clearCart()
 
-    router.push("/user/orders")
+      router.push("/user/orders")
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Đặt hàng thất bại",
+        description: "Vui lòng thử lại sau.",
+      })
+    }
   }
 
   if (isCartLoading) {
