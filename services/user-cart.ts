@@ -73,3 +73,15 @@ export async function updateUserCartItemQuantity(
     { headers },
   )
 }
+
+export async function addUserCartItem(
+  dishId: string | number,
+  quantity: number
+): Promise<void> {
+  const headers = getAuthHeaders()
+  await apiClient.post(
+    "/user-dishes",
+    { dishId, quantity },
+    { headers },
+  )
+}

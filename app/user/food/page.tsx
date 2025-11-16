@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,7 @@ import {
 import { fetchAllTags } from "@/services/tags"
 import { fetchDishesRaw, type DishApiResponse } from "@/services/dishes"
 import { fetchDishReviews, type DishReviewResponse } from "@/services/reviews"
+import { addUserCartItem } from "@/services/user-cart"
 import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -194,6 +195,65 @@ export default function FoodPage() {
   const [reviewsByDish, setReviewsByDish] = useState<Record<string, DishReviewResponse[]>>({})
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewsError, setReviewsError] = useState<string | null>(null)
+  const pendingAdditionsRef = useRef<
+    Record<string, { timeout: ReturnType<typeof setTimeout>; quantity: number }>
+  >({})
+  const flushPendingAdditions = useCallback(async () => {
+    const entries = Object.entries(pendingAdditionsRef.current)
+    pendingAdditionsRef.current = {}
+    await Promise.all(
+      entries.map(async ([dishId, data]) => {
+        clearTimeout(data.timeout)
+        if (data.quantity <= 0) return
+        const numericId = Number(dishId)
+        const payloadDishId = Number.isNaN(numericId) ? dishId : numericId
+        try {
+          await addUserCartItem(payloadDishId, data.quantity)
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Không thể cập nhật giỏ hàng",
+            description: "Vui lòng thử lại sau.",
+          })
+        }
+      }),
+    )
+  }, [toast])
+
+  const scheduleAddSync = useCallback(
+    (dishId: string) => {
+      const current = pendingAdditionsRef.current[dishId]
+      const nextQuantity = (current?.quantity ?? 0) + 1
+      if (current) {
+        clearTimeout(current.timeout)
+      }
+      const timeout = setTimeout(async () => {
+        const pending = pendingAdditionsRef.current[dishId]
+        if (!pending) return
+        delete pendingAdditionsRef.current[dishId]
+        if (pending.quantity <= 0) return
+        const numericId = Number(dishId)
+        const payloadDishId = Number.isNaN(numericId) ? dishId : numericId
+        try {
+          await addUserCartItem(payloadDishId, pending.quantity)
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Không thể thêm vào giỏ hàng",
+            description: "Vui lòng thử lại sau.",
+          })
+        }
+      }, 1000)
+      pendingAdditionsRef.current[dishId] = { timeout, quantity: nextQuantity }
+    },
+    [toast],
+  )
+
+  useEffect(() => {
+    return () => {
+      flushPendingAdditions()
+    }
+  }, [flushPendingAdditions])
 
   useEffect(() => {
     let isMounted = true
@@ -235,21 +295,21 @@ export default function FoodPage() {
             cookMethods: [] as string[],
             flavorProfiles: [] as string[],
           }
-          ;(dish.tags ?? []).forEach((tag) => {
-            const normalizedCategory = tag.category?.name?.trim().toLowerCase() ?? ""
-            const key = CATEGORY_KEY_BY_NAME[normalizedCategory]
-            if (!key) return
-            const value = tag.name.trim()
-            if (key === "cuisine") {
-              baseMeta.cuisine = value
-            } else if (key === "ingredient") {
-              if (!baseMeta.mainIngredients.includes(value)) baseMeta.mainIngredients.push(value)
-            } else if (key === "method") {
-              if (!baseMeta.cookMethods.includes(value)) baseMeta.cookMethods.push(value)
-            } else if (key === "flavor") {
-              if (!baseMeta.flavorProfiles.includes(value)) baseMeta.flavorProfiles.push(value)
-            }
-          })
+            ; (dish.tags ?? []).forEach((tag) => {
+              const normalizedCategory = tag.category?.name?.trim().toLowerCase() ?? ""
+              const key = CATEGORY_KEY_BY_NAME[normalizedCategory]
+              if (!key) return
+              const value = tag.name.trim()
+              if (key === "cuisine") {
+                baseMeta.cuisine = value
+              } else if (key === "ingredient") {
+                if (!baseMeta.mainIngredients.includes(value)) baseMeta.mainIngredients.push(value)
+              } else if (key === "method") {
+                if (!baseMeta.cookMethods.includes(value)) baseMeta.cookMethods.push(value)
+              } else if (key === "flavor") {
+                if (!baseMeta.flavorProfiles.includes(value)) baseMeta.flavorProfiles.push(value)
+              }
+            })
           meta[dishId] = baseMeta
           if (dish.restaurant?.name) {
             restaurantMap[dishId] = {
@@ -302,18 +362,18 @@ export default function FoodPage() {
         })
 
         const merged = {} as Record<FilterKey, DishFilterOption[]>
-        ;(Object.keys(DEFAULT_FILTER_OPTIONS) as FilterKey[]).forEach((key) => {
-          const uniqueMap = new Map<string, DishFilterOption>()
-          grouped[key].forEach((option) => {
-            if (!uniqueMap.has(option.value)) {
-              uniqueMap.set(option.value, option)
-            }
+          ; (Object.keys(DEFAULT_FILTER_OPTIONS) as FilterKey[]).forEach((key) => {
+            const uniqueMap = new Map<string, DishFilterOption>()
+            grouped[key].forEach((option) => {
+              if (!uniqueMap.has(option.value)) {
+                uniqueMap.set(option.value, option)
+              }
+            })
+            merged[key] = [
+              DEFAULT_FILTER_OPTIONS[key][0],
+              ...Array.from(uniqueMap.values()),
+            ]
           })
-          merged[key] = [
-            DEFAULT_FILTER_OPTIONS[key][0],
-            ...Array.from(uniqueMap.values()),
-          ]
-        })
         setFilterOptions(merged)
       } catch (error) {
         if (!isMounted) return
@@ -464,6 +524,7 @@ export default function FoodPage() {
 
   const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
+    scheduleAddSync(dish.id)
     toast({
       title: (
         <div className="flex items-center gap-3">
@@ -809,9 +870,9 @@ export default function FoodPage() {
                           <p className="mt-3 text-xs text-muted-foreground">
                             {review.createdAt
                               ? new Intl.DateTimeFormat("vi-VN", {
-                                  dateStyle: "short",
-                                  timeStyle: "short",
-                                }).format(new Date(review.createdAt))
+                                dateStyle: "short",
+                                timeStyle: "short",
+                              }).format(new Date(review.createdAt))
                               : "Thời gian không xác định"}
                           </p>
                         </div>
