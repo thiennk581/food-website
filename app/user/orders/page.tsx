@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { Order, OrderItem, OrderStatus, Dish } from "@/types"
 import { mockRestaurants, mockDishes } from "@/lib/mock-data"
-import { fetchUserOrders, fetchOrderItems } from "@/services/orders"
+import { fetchUserOrders, fetchOrderItems, submitOrderItemReview } from "@/services/orders"
 import { fetchUserProfile } from "@/services/users"
+import { useToast } from "@/hooks/use-toast"
 import {
   Pagination,
   PaginationContent,
@@ -65,11 +66,17 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
-  const [reviewingItem, setReviewingItem] = useState<{ dish: Dish; orderId: string; dishId: string } | null>(null)
+  const [reviewingItem, setReviewingItem] = useState<{
+    dish: Dish
+    orderId: string
+    dishId: string
+    orderItemId: string
+  } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
   const totalPages = Math.ceil(orders.length / ordersPerPage)
   const currentOrders = orders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage)
+  const { toast } = useToast()
 
   useEffect(() => {
     let isMounted = true
@@ -156,23 +163,27 @@ export default function OrdersPage() {
     )
   }
 
-  const handleReviewSubmit = (rating: number, comment: string) => {
+  const handleReviewSubmit = async (rating: number, comment: string) => {
     if (!reviewingItem) return
-
-    setOrderItems((prev) => {
-      const items = prev[reviewingItem.orderId] ?? []
-      const updated = items.map((item) =>
-        item.dishId === reviewingItem.dishId ? { ...item, isRated: true } : item,
-      )
-      return { ...prev, [reviewingItem.orderId]: updated }
-    })
-
-    console.log("Review submitted:", {
-      dishId: reviewingItem.dish.id,
-      rating,
-      comment,
-    })
-    setReviewDialogOpen(false)
+    try {
+      await submitOrderItemReview(reviewingItem.orderItemId, rating, comment)
+      setOrderItems((prev) => {
+        const items = prev[reviewingItem.orderId] ?? []
+        const updated = items.map((item) =>
+          item.dishId === reviewingItem.dishId ? { ...item, isRated: true } : item,
+        )
+        return { ...prev, [reviewingItem.orderId]: updated }
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Không thể gửi đánh giá",
+        description: "Vui lòng thử lại sau.",
+      })
+      return
+    } finally {
+      setReviewDialogOpen(false)
+    }
   }
 
   const selectedItems = selectedOrder ? orderItems[selectedOrder.id] ?? [] : []
@@ -346,6 +357,11 @@ export default function OrdersPage() {
                         dishDetails?.restaurantId
                           ? getRestaurantName(dishDetails.restaurantId as string)
                           : item.restaurantName || "Không rõ nhà hàng"
+                      const canReview =
+                        selectedOrder.status === "completed" &&
+                        // !!dishDetails &&
+                        !item.isRated &&
+                        !!item.orderItemId
 
                       const reviewDish: Dish =
                         dishDetails ||
@@ -390,19 +406,23 @@ export default function OrdersPage() {
                               size="sm"
                               className="mt-3"
                               onClick={() => {
+                                if ( !item.orderItemId) return
                                 setReviewingItem({
                                   dish: reviewDish,
                                   orderId: selectedOrder.id,
                                   dishId: item.dishId,
+                                  orderItemId: item.orderItemId,
                                 })
                                 setReviewDialogOpen(true)
                               }}
-                              disabled={
-                                selectedOrder.status !== "completed" || !!item.isRated
-                              }
+                              disabled={!canReview}
                             >
                               <Star className="mr-1.5 h-4 w-4" />
-                              {item.isRated ? "Đã đánh giá" : "Đánh giá"}
+                              {item.isRated
+                                ? "Đã đánh giá"
+                                : selectedOrder.status === "completed"
+                                  ? "Đánh giá"
+                                  : "Chờ hoàn tất"}
                             </Button>
                           </div>
                         </div>

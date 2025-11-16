@@ -62,6 +62,7 @@ export async function fetchOrderItems(orderId: string | number): Promise<OrderIt
     headers,
   })
   return data.map((item) => ({
+    orderItemId: item.id !== undefined ? String(item.id) : undefined,
     dishId: String(item.dishId),
     restaurantId: String(item.restaurantName ?? ""),
     quantity: Number(item.quantity ?? 0),
@@ -71,4 +72,13 @@ export async function fetchOrderItems(orderId: string | number): Promise<OrderIt
     imageUrl: item.imageUrl,
     restaurantName: item.restaurantName,
   }))
+}
+
+export async function submitOrderItemReview(
+  orderItemId: string | number,
+  rating: number,
+  comment: string,
+): Promise<void> {
+  const headers = getAuthHeaders()
+  await apiClient.post(`/reviews/dish/${orderItemId}`, { rating, comment }, { headers })
 }

@@ -101,6 +101,7 @@ export interface OrderItem {
   dishName?: string
   imageUrl?: string
   restaurantName?: string
+  orderItemId?: string
 }
 
 // Cấu trúc của một đơn hàng hoàn chỉnh

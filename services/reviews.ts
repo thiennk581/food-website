@@ -15,5 +15,8 @@ function getAuthHeaders(): HeadersInit {
 
 export async function fetchDishReviews(dishId: string | number) {
   const headers = getAuthHeaders()
-  return apiClient.get<DishReviewResponse[]>(`/reviews/dish/${dishId}`, { headers })
+  const data = await apiClient.get<DishReviewResponse[]>(`/reviews/dish/${dishId}`, { headers })
+  return data.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
 }
