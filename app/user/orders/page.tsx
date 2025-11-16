@@ -1,12 +1,14 @@
 "use client" // Chuyển sang Client Component để sử dụng hook
 
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { Order, OrderStatus, Dish } from "@/types"
-import { mockOrders, mockRestaurants, mockUsers, mockDishes } from "@/lib/mock-data"
+import { mockRestaurants, mockDishes } from "@/lib/mock-data"
+import { fetchUserOrders } from "@/services/orders"
+import { fetchUserProfile } from "@/services/users"
 import {
   Pagination,
   PaginationContent,
@@ -55,15 +57,56 @@ const getStatusBadge = (status: OrderStatus) => {
 }
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null)
-  const user = mockUsers // Lấy thông tin người dùng giả
+  const [orders, setOrders] = useState<Order[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string; phone: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isReviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [reviewingItem, setReviewingItem] = useState<{ dish: Dish; orderId: string; dishId: string } | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const ordersPerPage = 5
   const totalPages = Math.ceil(orders.length / ordersPerPage)
   const currentOrders = orders.slice((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage)
+
+  useEffect(() => {
+    let isMounted = true
+    const loadData = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const [ordersResponse] = await Promise.all([fetchUserOrders()])
+        if (!isMounted) return
+        setOrders(ordersResponse)
+        setSelectedOrder(ordersResponse[0] || null)
+      } catch (error) {
+        if (!isMounted) return
+        setError("Không thể tải danh sách đơn hàng.")
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    const loadProfile = async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      if (!token) return
+      try {
+        const data = await fetchUserProfile({ token })
+        if (!isMounted) return
+        setUserInfo({
+          name: data.fullName ?? "",
+          email: data.email ?? "",
+          phone: data.phoneNumber ?? "",
+        })
+      } catch {
+        // ignore profile errors
+      }
+    }
+    loadData()
+    loadProfile()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -72,7 +115,16 @@ export default function OrdersPage() {
     setSelectedOrder(firstOrderOfPage || null)
   }
 
-  // Trường hợp không có đơn hàng nào trong mock data
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <Package className="mx-auto h-16 w-16 text-muted-foreground" />
+        <h2 className="mt-4 text-2xl font-bold text-foreground">Đang tải đơn hàng...</h2>
+        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      </div>
+    )
+  }
+
   if (!orders || orders.length === 0) {
     return (
       <div className="container mx-auto px-4 py-16">
@@ -80,6 +132,7 @@ export default function OrdersPage() {
           <Package className="mx-auto h-16 w-16 text-muted-foreground" />
           <h2 className="mt-4 text-2xl font-bold text-foreground">Chưa có đơn hàng</h2>
           <p className="mt-2 text-muted-foreground">Bạn chưa có đơn hàng nào được ghi nhận.</p>
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
         </div>
       </div>
     )
@@ -120,7 +173,10 @@ export default function OrdersPage() {
   return (
     <>
       <div className="container mx-auto max-w-7xl px-4 py-8">
-        <h1 className="mb-8 text-3xl font-bold text-foreground">Đơn hàng của tôi</h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Đơn hàng của tôi</h1>
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+        </div>
 
       <div className="grid grid-cols-5 gap-13">
         {/* Cột trái: Danh sách đơn hàng */}
@@ -230,15 +286,21 @@ export default function OrdersPage() {
                     <Separator className="my-2" />
                     <div className="grid grid-cols-3 items-center gap-x-4">
                       <span className="text-muted-foreground">Họ tên:</span>
-                      <span className="col-span-2 font-medium text-right">{user.name}</span>
+                      <span className="col-span-2 font-medium text-right">
+                        {userInfo?.name || "—"}
+                      </span>
                     </div>
                     <div className="grid grid-cols-3 items-center gap-x-4">
                       <span className="text-muted-foreground">Số điện thoại:</span>
-                      <span className="col-span-2 font-medium text-right">{user.phone}</span>
+                      <span className="col-span-2 font-medium text-right">
+                        {userInfo?.phone || "—"}
+                      </span>
                     </div>
                     <div className="grid grid-cols-3 items-center gap-x-4">
                       <span className="text-muted-foreground">Email:</span>
-                      <span className="col-span-2 font-medium text-right">{user.email}</span>
+                      <span className="col-span-2 font-medium text-right">
+                        {userInfo?.email || "—"}
+                      </span>
                     </div>
                     <Separator className="my-2" />
                     <div className="space-y-1">
@@ -259,6 +321,11 @@ export default function OrdersPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[450px] overflow-y-auto divide-y">
+                    {selectedOrder.items.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted-foreground">
+                        Chi tiết món ăn sẽ hiển thị khi API sẵn sàng.
+                      </p>
+                    )}
                     {selectedOrder.items.map((item) => {
                       const dishDetails = getDishDetails(item.dishId)
                       if (!dishDetails) return null
