@@ -98,6 +98,9 @@ export interface OrderItem {
   quantity: number
   price: number // Giá tại thời điểm đặt 
   isRated: Boolean
+  dishName?: string
+  imageUrl?: string
+  restaurantName?: string
 }
 
 // Cấu trúc của một đơn hàng hoàn chỉnh

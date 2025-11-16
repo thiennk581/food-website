@@ -5,9 +5,9 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import type { Order, OrderStatus, Dish } from "@/types"
+import type { Order, OrderItem, OrderStatus, Dish } from "@/types"
 import { mockRestaurants, mockDishes } from "@/lib/mock-data"
-import { fetchUserOrders } from "@/services/orders"
+import { fetchUserOrders, fetchOrderItems } from "@/services/orders"
 import { fetchUserProfile } from "@/services/users"
 import {
   Pagination,
@@ -59,6 +59,8 @@ const getStatusBadge = (status: OrderStatus) => {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({})
+  const [itemsLoading, setItemsLoading] = useState(false)
   const [userInfo, setUserInfo] = useState<{ name: string; email: string; phone: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +77,7 @@ export default function OrdersPage() {
       setLoading(true)
       setError(null)
       try {
-        const [ordersResponse] = await Promise.all([fetchUserOrders()])
+        const ordersResponse = await fetchUserOrders()
         if (!isMounted) return
         setOrders(ordersResponse)
         setSelectedOrder(ordersResponse[0] || null)
@@ -107,6 +109,22 @@ export default function OrdersPage() {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    const loadItems = async () => {
+      if (!selectedOrder || orderItems[selectedOrder.id]) return
+      setItemsLoading(true)
+      try {
+        const items = await fetchOrderItems(selectedOrder.id)
+        setOrderItems((prev) => ({ ...prev, [selectedOrder.id]: items }))
+      } catch {
+        // ignore
+      } finally {
+        setItemsLoading(false)
+      }
+    }
+    loadItems()
+  }, [selectedOrder, orderItems])
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
@@ -141,26 +159,13 @@ export default function OrdersPage() {
   const handleReviewSubmit = (rating: number, comment: string) => {
     if (!reviewingItem) return
 
-    const newOrders = orders.map((order) => {
-      if (order.id === reviewingItem.orderId) {
-        const updatedItems = order.items.map((item) => {
-          if (item.dishId === reviewingItem.dishId) {
-            return { ...item, isRated: true }
-          }
-          return item
-        })
-        return { ...order, items: updatedItems }
-      }
-      return order
+    setOrderItems((prev) => {
+      const items = prev[reviewingItem.orderId] ?? []
+      const updated = items.map((item) =>
+        item.dishId === reviewingItem.dishId ? { ...item, isRated: true } : item,
+      )
+      return { ...prev, [reviewingItem.orderId]: updated }
     })
-
-    setOrders(newOrders)
-
-    // Find the updated order and set it as the selectedOrder
-    const updatedSelectedOrder = newOrders.find((o) => o.id === selectedOrder?.id)
-    if (updatedSelectedOrder) {
-      setSelectedOrder(updatedSelectedOrder)
-    }
 
     console.log("Review submitted:", {
       dishId: reviewingItem.dish.id,
@@ -169,6 +174,8 @@ export default function OrdersPage() {
     })
     setReviewDialogOpen(false)
   }
+
+  const selectedItems = selectedOrder ? orderItems[selectedOrder.id] ?? [] : []
 
   return (
     <>
@@ -316,34 +323,59 @@ export default function OrdersPage() {
                     <CardTitle className="text-lg font-semibold">
                       Chi tiết đơn hàng{" "}
                       <span className="text-sm font-normal text-muted-foreground">
-                        ({selectedOrder.items.length} món)
+                        ({selectedItems.length} món)
                       </span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[450px] overflow-y-auto divide-y">
-                    {selectedOrder.items.length === 0 && (
+                    {itemsLoading && selectedItems.length === 0 && (
                       <p className="py-6 text-center text-sm text-muted-foreground">
-                        Chi tiết món ăn sẽ hiển thị khi API sẵn sàng.
+                        Đang tải món ăn...
                       </p>
                     )}
-                    {selectedOrder.items.map((item) => {
+                    {!itemsLoading && selectedItems.length === 0 && (
+                      <p className="py-6 text-center text-sm text-muted-foreground">
+                        Chưa có dữ liệu món ăn cho đơn này.
+                      </p>
+                    )}
+                    {selectedItems.map((item) => {
                       const dishDetails = getDishDetails(item.dishId)
-                      if (!dishDetails) return null
+                      const image = dishDetails?.image || item.imageUrl || "/placeholder.svg"
+                      const name = dishDetails?.name || item.dishName || "Món ăn"
+                      const restaurant =
+                        dishDetails?.restaurantId
+                          ? getRestaurantName(dishDetails.restaurantId as string)
+                          : item.restaurantName || "Không rõ nhà hàng"
+
+                      const reviewDish: Dish =
+                        dishDetails ||
+                        ({
+                          id: String(item.dishId),
+                          restaurantId: item.restaurantName ?? "api_restaurant",
+                          name,
+                          description: "",
+                          price: item.price,
+                          image,
+                          category: restaurant,
+                          rating: 0,
+                          totalReviews: 0,
+                          isAvailable: true,
+                          spicyLevel: "none",
+                          tags: [],
+                        } as Dish)
 
                       return (
                         <div key={item.dishId} className="flex items-center gap-4 py-4">
                           <Image
-                            src={dishDetails.image || "/placeholder.svg"}
-                            alt={dishDetails.name}
+                            src={image}
+                            alt={name}
                             width={96}
                             height={96}
                             className="h-24 w-24 rounded-lg object-cover"
                           />
                           <div className="flex-1 space-y-1">
-                            <p className="text-base font-semibold">{dishDetails.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {getRestaurantName(item.restaurantId as string)}
-                            </p>
+                            <p className="text-base font-semibold">{name}</p>
+                            <p className="text-sm text-muted-foreground">{restaurant}</p>
                             <p className="text-sm text-muted-foreground">
                               {item.price.toLocaleString("vi-VN")}đ
                             </p>
@@ -353,27 +385,25 @@ export default function OrdersPage() {
                               {(item.price * item.quantity).toLocaleString("vi-VN")}đ
                             </p>
                             <p className="text-sm text-muted-foreground">SL: {item.quantity}</p>
-                            {selectedOrder.status === "completed" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-3"
-                                onClick={() => {
-                                  if (selectedOrder) {
-                                    setReviewingItem({
-                                      dish: dishDetails,
-                                      orderId: selectedOrder.id,
-                                      dishId: item.dishId,
-                                    })
-                                    setReviewDialogOpen(true)
-                                  }
-                                }}
-                                disabled={!!item.isRated}
-                              >
-                                <Star className="mr-1.5 h-4 w-4" />
-                                {item.isRated ? "Đã đánh giá" : "Đánh giá"}
-                              </Button>
-                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-3"
+                              onClick={() => {
+                                setReviewingItem({
+                                  dish: reviewDish,
+                                  orderId: selectedOrder.id,
+                                  dishId: item.dishId,
+                                })
+                                setReviewDialogOpen(true)
+                              }}
+                              disabled={
+                                selectedOrder.status !== "completed" || !!item.isRated
+                              }
+                            >
+                              <Star className="mr-1.5 h-4 w-4" />
+                              {item.isRated ? "Đã đánh giá" : "Đánh giá"}
+                            </Button>
                           </div>
                         </div>
                       )
