@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, Lock, Unlock, Filter, MapPin, CheckCircle2 } from "lucide-react"
+import { Search, MoreVertical, CheckCircle2 } from "lucide-react"
 import type { User } from "@/types"
-import { mockUsers as usersFromMock } from "@/lib/mock-data"
 import { useToast } from "@/hooks/use-toast"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { useAdminUsers } from "@/hooks/users/use-admin-users"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 // Đã bỏ bộ lọc vai trò/trạng thái theo yêu cầu
 // Bỏ avatar theo yêu cầu
 
@@ -22,16 +22,14 @@ export default function UsersPage() {
   const [quickFilter, setQuickFilter] = useState<"all"|"customers"|"admins"|"active"|"locked">("all")
   const pageSize = 10
 
-  // Dữ liệu mock lấy từ module
-  // Local state copy to allow optimistic update and toast
-  const [mockUsers, setMockUsers] = useState<User[]>(usersFromMock)
   const { toast } = useToast()
+  const { data: users, loading, error, setData: setUsers } = useAdminUsers()
   const [confirmUser, setConfirmUser] = useState<User | null>(null)
   const [confirmRoleUser, setConfirmRoleUser] = useState<User | null>(null)
 
   const filteredUsers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
-    return mockUsers.filter((user) => {
+    return users.filter((user) => {
       const matchesQuery = !q || user.name.toLowerCase().includes(q) || user.email.toLowerCase().includes(q)
       let matchesQuick = true
       switch (quickFilter) {
@@ -52,7 +50,7 @@ export default function UsersPage() {
       }
       return matchesQuery && matchesQuick
     })
-  }, [searchQuery, quickFilter])
+  }, [searchQuery, quickFilter, users])
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
   // Đảm bảo trang hợp lệ khi dữ liệu lọc thay đổi
@@ -80,25 +78,18 @@ export default function UsersPage() {
   }, [totalPages, page])
 
   const stats = useMemo(() => {
-    const total = mockUsers.length
-    const admins = mockUsers.filter((u) => u.role === "admin").length
-    const actives = mockUsers.filter((u) => u.isActive).length
-    const customers = mockUsers.filter((u) => u.role === "user").length
-    const locked = mockUsers.filter((u) => !u.isActive).length
+    const total = users.length
+    const admins = users.filter((u) => u.role === "admin").length
+    const actives = users.filter((u) => u.isActive).length
+    const customers = users.filter((u) => u.role === "user").length
+    const locked = users.filter((u) => !u.isActive).length
     return { total, admins, actives, customers, locked }
-  }, [])
-
-  const getDefaultAddress = (user: User) => {
-    const list = user.address
-    if (!list || list.length === 0) return "-"
-    const def = list.find((a) => a.isDefault) || list[0]
-    return def.address || "-"
-  }
+  }, [users])
 
   // lock/unlock handling with toast
   const handleToggleActive = (u: User) => {
     const next = !u.isActive
-    setMockUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
     toast({
       title: (
         <div className="flex items-center gap-3">
@@ -112,7 +103,7 @@ export default function UsersPage() {
 
   const handleToggleRole = (u: User) => {
     const nextRole: User["role"] = u.role === 'admin' ? 'user' : 'admin'
-    setMockUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: nextRole } : x))
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: nextRole } : x))
     toast({
       title: (
         <div className="flex items-center gap-3">
@@ -186,13 +177,25 @@ export default function UsersPage() {
                   <TableHead className="w-[28%] min-w-[200px]">Tên user</TableHead>
                   <TableHead className="w-[24%] min-w-[220px]">Email</TableHead>
                   <TableHead className="w-[12%]">Vai trò</TableHead>
-                  <TableHead className="w-[24%] min-w-[240px]">Địa chỉ</TableHead>
+                  <TableHead className="w-[20%] min-w-[200px]">Số điện thoại</TableHead>
                   <TableHead className="w-[12%]">Trạng thái</TableHead>
                   <TableHead className="w-[8%] text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                      Đang tải danh sách người dùng...
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center text-destructive">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredUsers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                       Không có người dùng phù hợp với bộ lọc hiện tại
@@ -214,11 +217,10 @@ export default function UsersPage() {
                         {user.role === "admin" ? "Admin" : "User"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-[300px]">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4 shrink-0" />
-                        <span className="truncate" title={getDefaultAddress(user)}>{getDefaultAddress(user)}</span>
-                      </div>
+                    <TableCell className="max-w-[220px] text-muted-foreground">
+                      <span className="block truncate" title={user.phone || "Chưa có số điện thoại"}>
+                        {user.phone || "Chưa có số điện thoại"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {user.isActive ? (

@@ -39,6 +39,7 @@ const createAdminUserFromStorage = (data: any): User => {
     email: data?.email ?? "",
     phone: data?.phone ?? "",
     gender: (data?.gender as User["gender"]) ?? "other",
+    role: "admin",
     birthdate: data?.birthdate ?? "",
     avatarUrl: data?.avatarUrl,
     roleName: "ADMIN",

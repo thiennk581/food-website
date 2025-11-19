@@ -16,6 +16,7 @@ export interface User {
   name: string
   phone: string
   gender: "male" | "female" | "other"
+  role: "user" | "admin"
   birthdate: string
   avatarUrl?: string
   roleName: "USER" | "ADMIN"

@@ -66,6 +66,7 @@ const DEFAULT_USER: User =
         name: "",
         phone: "",
         gender: "other",
+        role: "user",
         birthdate: "",
         roleName: "USER",
         createdAt: "",
