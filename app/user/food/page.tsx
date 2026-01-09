@@ -28,7 +28,8 @@ import { fetchAllTags } from "@/services/tags"
 import { fetchDishesRaw, type DishApiResponse } from "@/services/dishes"
 import { fetchDishReviews, type DishReviewResponse } from "@/services/reviews"
 import { addUserCartItem } from "@/services/user-cart"
-import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2 } from "lucide-react"
+import { fetchRecommendations, trackUserAction } from "@/services/recommendations"
+import { Search, Star, Plus, Flame, MessageCircle, MapPin, Phone, RotateCcw, CheckCircle2, Sparkles } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Pagination,
@@ -195,6 +196,11 @@ export default function FoodPage() {
   const [reviewsByDish, setReviewsByDish] = useState<Record<string, DishReviewResponse[]>>({})
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewsError, setReviewsError] = useState<string | null>(null)
+  const [recommendedDishIds, setRecommendedDishIds] = useState<string[]>([])
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false)
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null)
+  const isRecommendationsActive = recommendedDishIds.length > 0
+  const lastTrackedDishIdRef = useRef<string | null>(null)
   const pendingAdditionsRef = useRef<
     Record<string, { timeout: ReturnType<typeof setTimeout>; quantity: number }>
   >({})
@@ -388,9 +394,27 @@ export default function FoodPage() {
     }
   }, [])
 
+  const recommendationRank = useMemo(() => {
+    const rank = new Map<string, number>()
+    recommendedDishIds.forEach((id, index) => {
+      rank.set(id, index)
+    })
+    return rank
+  }, [recommendedDishIds])
+
+  const baseDishes = useMemo(() => {
+    if (recommendedDishIds.length === 0) return dishes
+    return dishes
+      .filter((dish) => recommendationRank.has(dish.id))
+      .sort(
+        (a, b) =>
+          (recommendationRank.get(a.id) ?? 0) - (recommendationRank.get(b.id) ?? 0),
+      )
+  }, [dishes, recommendationRank, recommendedDishIds.length])
+
 
   const filteredDishes = useMemo(() => {
-    return dishes.filter((dish) => {
+    return baseDishes.filter((dish) => {
       const meta = dishMetaMap[dish.id] ?? dishMetadata[dish.id] ?? DEFAULT_DISH_META
       const matchesSearch = dish.name.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesCuisine = selectedCuisine === "all" || meta.cuisine === selectedCuisine
@@ -421,11 +445,11 @@ export default function FoodPage() {
         dish.isAvailable
       )
     })
-  }, [dishes, dishMetaMap, searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
+  }, [baseDishes, dishMetaMap, searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice])
+  }, [searchQuery, selectedCuisine, selectedIngredient, selectedMethod, selectedFlavor, minPrice, maxPrice, recommendedDishIds])
 
   useEffect(() => {
     if (!filteredDishes.length) {
@@ -472,6 +496,9 @@ export default function FoodPage() {
 
   useEffect(() => {
     if (!selectedDishId) return
+    if (lastTrackedDishIdRef.current === selectedDishId) return
+    lastTrackedDishIdRef.current = selectedDishId
+    void trackUserAction({ dishId: selectedDishId, action: "DETAILS" }).catch(() => {})
     if (reviewsByDish[selectedDishId]) return
     let cancelled = false
     setReviewsLoading(true)
@@ -525,6 +552,7 @@ export default function FoodPage() {
   const handleAddToCart = (dish: Dish) => {
     addToCart(dish)
     scheduleAddSync(dish.id)
+    void trackUserAction({ dishId: dish.id, action: "ADD_TO_CART" }).catch(() => {})
     toast({
       title: (
         <div className="flex items-center gap-3">
@@ -537,6 +565,27 @@ export default function FoodPage() {
     })
   }
 
+  const handleRecommend = async () => {
+    setRecommendationsLoading(true)
+    setRecommendationsError(null)
+    try {
+      const data = await fetchRecommendations()
+      const rankedIds = Object.entries(data)
+        .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
+        .map(([id]) => id)
+      setRecommendedDishIds(rankedIds.slice(0, 10))
+      setCurrentPage(1)
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message === "Missing auth token"
+          ? "Vui lòng đăng nhập để xem gợi ý."
+          : "Không thể tải gợi ý. Vui lòng thử lại."
+      setRecommendationsError(message)
+    } finally {
+      setRecommendationsLoading(false)
+    }
+  }
+
   const handleResetFilters = () => {
     setSearchQuery("")
     setSelectedCuisine("all")
@@ -545,6 +594,8 @@ export default function FoodPage() {
     setSelectedFlavor("all")
     setMinPrice("")
     setMaxPrice("")
+    setRecommendedDishIds([])
+    setRecommendationsError(null)
   }
 
   const getRestaurant = (dish: Dish) => {
@@ -575,7 +626,7 @@ export default function FoodPage() {
 
       {/* Filters */}
       <div className="mb-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto] items-end">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto_auto] items-end">
           <FilterSelect
             label="Ẩm thực"
             value={selectedCuisine}
@@ -608,6 +659,15 @@ export default function FoodPage() {
               onMaxPriceChange={setMaxPrice}
             />
           </div>
+          <Button
+            variant={isRecommendationsActive ? "default" : "outline"}
+            className={cn("h-13 gap-2", isRecommendationsActive && "bg-primary text-primary-foreground hover:bg-primary/90")}
+            onClick={handleRecommend}
+            disabled={recommendationsLoading}
+          >
+            <Sparkles className="h-4 w-4" />
+            {recommendationsLoading ? "Đang gợi ý..." : "Gợi ý"}
+          </Button>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -627,6 +687,9 @@ export default function FoodPage() {
         )}
         {filtersError && (
           <p className="mt-2 text-sm text-destructive">{filtersError}</p>
+        )}
+        {recommendationsError && (
+          <p className="mt-2 text-sm text-destructive">{recommendationsError}</p>
         )}
       </div>
       {dishesError && (
