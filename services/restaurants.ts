@@ -29,6 +29,8 @@ export type CreateRestaurantInput = {
   phone: string;
 };
 
+export type UpdateRestaurantInput = CreateRestaurantInput;
+
 export async function createRestaurant(input: CreateRestaurantInput): Promise<Restaurant> {
   const payload = {
     name: input.name,
@@ -36,6 +38,16 @@ export async function createRestaurant(input: CreateRestaurantInput): Promise<Re
     phoneNumber: input.phone,
   };
   const data = await apiClient.post<any>("/restaurants", payload, { headers: getAuthHeaders() });
+  return mapRestaurant(data);
+}
+
+export async function updateRestaurant(id: number | string, input: UpdateRestaurantInput): Promise<Restaurant> {
+  const payload = {
+    name: input.name,
+    address: input.address,
+    phoneNumber: input.phone,
+  };
+  const data = await apiClient.put<any>(`/restaurants/${id}`, payload, { headers: getAuthHeaders() });
   return mapRestaurant(data);
 }
 

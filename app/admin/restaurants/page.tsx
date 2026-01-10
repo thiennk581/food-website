@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Restaurant } from "@/types"
 import { useRestaurants } from "@/hooks/restaurants/use-restaurants"
 import { useCreateRestaurant } from "@/hooks/restaurants/use-create-restaurant"
-import { setRestaurantBlocking } from "@/services/restaurants"
+import { setRestaurantBlocking, updateRestaurant } from "@/services/restaurants"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -42,7 +42,9 @@ export default function RestaurantsPage() {
 
   async function onSubmit(values: CreateRestaurantInput) {
     try {
-      await createRestaurant({ name: values.name, address: values.address, phone: values.phone })
+      const created = await createRestaurant({ name: values.name, address: values.address, phone: values.phone })
+      setRestaurants((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
+      setPage(1)
       toast({
         title: (
           <div className="flex items-center gap-3">
@@ -53,7 +55,6 @@ export default function RestaurantsPage() {
       })
       setOpen(false)
       form.reset()
-      refresh()
     } catch (e) {
       toast({ variant: "destructive", title: "Tạo thất bại", description: "Vui lòng thử lại sau." })
     }
@@ -76,9 +77,11 @@ export default function RestaurantsPage() {
     }
   }, [editing])
 
-  function onEditSubmit(values: EditRestaurantInput) {
+  async function onEditSubmit(values: EditRestaurantInput) {
     try {
-      console.log("Edit restaurant", { id: editing?.id, ...values })
+      if (!editing) return
+      const updated = await updateRestaurant(normalizeId(editing.id), values)
+      setRestaurants((prev) => prev.map((item) => item.id === editing.id ? updated : item))
       toast({
         title: (
           <div className="flex items-center gap-3">
