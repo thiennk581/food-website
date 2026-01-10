@@ -45,6 +45,14 @@ function mapAdminDish(dish: DishApiResponse): AdminDish {
   }
 }
 
+export type CreateDishInput = {
+  name: string
+  price: number
+  restaurantId: number | string
+  tags: Array<number | string>
+  imageUrl: string
+}
+
 export async function fetchDishesRaw(): Promise<DishApiResponse[]> {
   const headers = getAuthHeaders()
   return apiClient.get<DishApiResponse[]>("/dishes", { headers })
@@ -53,4 +61,22 @@ export async function fetchDishesRaw(): Promise<DishApiResponse[]> {
 export async function fetchAdminDishes(): Promise<AdminDish[]> {
   const data = await fetchDishesRaw()
   return data.map(mapAdminDish)
+}
+
+export async function createDish(input: CreateDishInput): Promise<AdminDish> {
+  const headers = getAuthHeaders()
+  const payload = {
+    name: input.name,
+    price: input.price,
+    restaurantId: input.restaurantId,
+    tags: input.tags,
+    imageUrl: input.imageUrl,
+  }
+  const data = await apiClient.post<DishApiResponse>("/dishes", payload, { headers })
+  return mapAdminDish(data)
+}
+
+export async function setDishBlocking(id: number | string, type: 0 | 1): Promise<string> {
+  const headers = getAuthHeaders()
+  return apiClient.post<string>(`/dishes/blocking/${id}/${type}`, undefined, { headers })
 }

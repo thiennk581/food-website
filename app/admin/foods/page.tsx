@@ -9,9 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Star, RefreshCw } from "lucide-react"
 import { Search, MoreVertical, Plus, CheckCircle2 } from "lucide-react"
-import type { Dish, AdminDish } from "@/types"
-import { mockRestaurants, mockTags, mockCategories } from "@/lib/mock-data"
-import { fetchAdminDishes } from "@/services/dishes"
+import type { Dish, AdminDish, Tag, Category } from "@/types"
+import { createDish, fetchAdminDishes, setDishBlocking } from "@/services/dishes"
+import { useRestaurants } from "@/hooks/restaurants/use-restaurants"
+import { fetchAllTags } from "@/services/tags"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -34,12 +35,31 @@ export default function FoodsPage() {
   const [editing, setEditing] = useState<Dish | null>(null)
   const { toast } = useToast()
   const [confirmDish, setConfirmDish] = useState<Dish | null>(null)
+  const [blockingId, setBlockingId] = useState<string | null>(null)
   const [restaurantSearch, setRestaurantSearch] = useState("")
   const [restaurantLimit, setRestaurantLimit] = useState(10)
   const [restaurantPopoverOpen, setRestaurantPopoverOpen] = useState(false)
   const [tagSearch, setTagSearch] = useState("")
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const { data: restaurants, loading: restaurantsLoading, error: restaurantsError, refresh: refreshRestaurants } = useRestaurants()
+  const restaurantOptions = useMemo(() => restaurants ?? [], [restaurants])
+  const [tagOptions, setTagOptions] = useState<Tag[]>([])
+  const [tagCategories, setTagCategories] = useState<Category[]>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [tagsError, setTagsError] = useState<string | null>(null)
+  const [tagsReload, setTagsReload] = useState(0)
+  const refreshTags = () => setTagsReload((v) => v + 1)
+  const tagCategoryNameById = useMemo(() => new Map(tagCategories.map((cat) => [cat.id, cat.name])), [tagCategories])
+
+  const getTagChipClasses = (categoryName?: string) => {
+    const normalized = categoryName?.toLowerCase() ?? ""
+    if (normalized.includes("ẩm thực")) return "bg-blue-100 text-blue-700 ring-blue-200"
+    if (normalized.includes("nguyên liệu")) return "bg-green-100 text-green-700 ring-green-200"
+    if (normalized.includes("phương pháp")) return "bg-amber-100 text-amber-800 ring-amber-200"
+    if (normalized.includes("hương vị")) return "bg-purple-100 text-purple-700 ring-purple-200"
+    return "bg-slate-100 text-slate-700 ring-slate-200"
+  }
 
   type CreateDishInput = {
     name: string
@@ -75,15 +95,62 @@ export default function FoodsPage() {
     }
   }, [editing])
 
-  function onSubmit(values: CreateDishInput) {
-    try {
-      // TODO: integrate API to create dish
-      const payload = {
-        ...values,
-        price: Number(values.price.replace(/\./g, "").trim() || 0),
-        tags: selectedTags,
+  useEffect(() => {
+    let isMounted = true
+    const loadTags = async () => {
+      setTagsLoading(true)
+      setTagsError(null)
+      try {
+        const data = await fetchAllTags()
+        if (!isMounted) return
+        const categoryMap = new Map<string, Category>()
+        const tags: Tag[] = []
+        data.forEach((tag) => {
+          const categoryId = tag.category?.id !== undefined && tag.category?.id !== null
+            ? String(tag.category.id)
+            : "uncategorized"
+          const categoryName = tag.category?.name?.trim() || "Khác"
+          if (!categoryMap.has(categoryId)) {
+            categoryMap.set(categoryId, { id: categoryId, name: categoryName })
+          }
+          tags.push({ id: String(tag.id), name: tag.name.trim(), categoryId })
+        })
+        setTagCategories(Array.from(categoryMap.values()))
+        setTagOptions(tags)
+      } catch (error) {
+        if (!isMounted) return
+        setTagsError("Không thể tải danh sách tag.")
+      } finally {
+        if (isMounted) setTagsLoading(false)
       }
-      console.log("Create dish", payload)
+    }
+    loadTags()
+    return () => {
+      isMounted = false
+    }
+  }, [tagsReload])
+
+  function normalizeId(value: string) {
+    const trimmed = value.trim()
+    return /^-?\d+$/.test(trimmed) ? Number(trimmed) : trimmed
+  }
+
+  async function onSubmit(values: CreateDishInput) {
+    try {
+      const price = Number(values.price.replace(/\./g, "").trim() || 0)
+      const payload = {
+        name: values.name.trim(),
+        price,
+        restaurantId: normalizeId(values.restaurantId),
+        tags: selectedTags.map((tagId) => normalizeId(tagId)),
+        imageUrl: values.imageUrl.trim(),
+      }
+      const created = await createDish(payload)
+      const fallbackRestaurantName = restaurantOptions.find((r) => r.id === values.restaurantId)?.name
+      const nextDish = created.restaurantName === "Không rõ" && fallbackRestaurantName
+        ? { ...created, restaurantName: fallbackRestaurantName }
+        : created
+      setDishes((prev) => [nextDish, ...prev])
       toast({
         title: (
           <div className="flex items-center gap-3">
@@ -94,6 +161,10 @@ export default function FoodsPage() {
       })
       setOpen(false)
       form.reset()
+      setSelectedTags([])
+      setRestaurantSearch("")
+      setRestaurantLimit(10)
+      setTagSearch("")
     } catch (e) {
       toast({ variant: "destructive", title: "Tạo thất bại", description: "Vui lòng thử lại sau." })
     }
@@ -132,7 +203,7 @@ export default function FoodsPage() {
     const min = clean(minPrice) ? Number(clean(minPrice)) : undefined
     const max = clean(maxPrice) ? Number(clean(maxPrice)) : undefined
     return dishes.filter((d) => {
-      const restaurantName = "restaurantName" in d ? d.restaurantName : mockRestaurants.find(r => r.id === (d as Dish).restaurantId)?.name
+      const restaurantName = "restaurantName" in d ? d.restaurantName : restaurantOptions.find(r => r.id === (d as Dish).restaurantId)?.name
       const matchesText = !q || (
         d.name.toLowerCase().includes(q) ||
         restaurantName?.toLowerCase().includes(q)
@@ -141,7 +212,7 @@ export default function FoodsPage() {
       const matchesStatus = status === "all" || (status === "available" ? d.isAvailable : !d.isAvailable)
       return matchesText && matchesPrice && matchesStatus
     })
-  }, [searchQuery, dishes, minPrice, maxPrice, status])
+  }, [searchQuery, dishes, minPrice, maxPrice, status, restaurantOptions])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const sorted = useMemo(() => {
@@ -170,7 +241,7 @@ export default function FoodsPage() {
 
   const getRestaurantName = (dish: AdminDish | Dish) => {
     if ("restaurantName" in dish) return dish.restaurantName
-    return mockRestaurants.find((r) => r.id === dish.restaurantId)?.name || "-"
+    return restaurantOptions.find((r) => r.id === dish.restaurantId)?.name || "-"
   }
 
   return (
@@ -221,10 +292,16 @@ export default function FoodsPage() {
                   name="restaurantId"
                   rules={{ required: "Vui lòng chọn quán ăn" }}
                   render={({ field }) => {
-                    const filtered = mockRestaurants
+                    const filtered = restaurantOptions
                       .filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase()))
                       .slice(0, restaurantLimit)
-                    const selectedName = mockRestaurants.find(r => r.id === field.value)?.name
+                    const totalMatches = restaurantOptions.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length
+                    const selectedName = restaurantOptions.find(r => r.id === field.value)?.name
+                    const emptyMessage = restaurantsLoading
+                      ? "Đang tải danh sách quán..."
+                      : restaurantsError
+                      ? "Không thể tải danh sách quán."
+                      : "Không tìm thấy quán phù hợp."
                     return (
                       <FormItem>
                         <FormLabel>Quán ăn</FormLabel>
@@ -240,7 +317,7 @@ export default function FoodsPage() {
                                 <CommandInput placeholder="Tìm quán theo tên..." value={restaurantSearch} onValueChange={setRestaurantSearch} />
                                 <div className="max-h-[300px] overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                                   <CommandList>
-                                    <CommandEmpty>Không tìm thấy quán phù hợp.</CommandEmpty>
+                                    <CommandEmpty>{emptyMessage}</CommandEmpty>
                                     <CommandGroup heading="Quán ăn">
                                       {filtered.map(r => (
                                         <CommandItem key={r.id} value={r.name} onSelect={() => { field.onChange(r.id); setRestaurantPopoverOpen(false) }}>
@@ -250,10 +327,17 @@ export default function FoodsPage() {
                                     </CommandGroup>
                                   </CommandList>
                                 </div>
-                                {mockRestaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length > restaurantLimit && (
+                                {totalMatches > restaurantLimit && (
                                   <div className="p-2 border-t flex justify-center">
                                     <Button type="button" variant="ghost" size="sm" onClick={() => setRestaurantLimit(l => l + 20)}>
                                       Xem thêm
+                                    </Button>
+                                  </div>
+                                )}
+                                {restaurantsError && (
+                                  <div className="p-2 border-t flex justify-center">
+                                    <Button type="button" variant="ghost" size="sm" onClick={refreshRestaurants}>
+                                      Thử tải lại
                                     </Button>
                                   </div>
                                 )}
@@ -287,15 +371,10 @@ export default function FoodsPage() {
                       {selectedTags.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           {selectedTags.map(tid => {
-                            const t = mockTags.find(x => x.id === tid)
+                            const t = tagOptions.find(x => x.id === tid)
                             const catId = t?.categoryId
-                            const color = catId === 'cat_1'
-                              ? 'bg-blue-100 text-blue-700 ring-blue-200'
-                              : catId === 'cat_2'
-                              ? 'bg-green-100 text-green-700 ring-green-200'
-                              : catId === 'cat_3'
-                              ? 'bg-amber-100 text-amber-800 ring-amber-200'
-                              : 'bg-purple-100 text-purple-700 ring-purple-200'
+                            const categoryName = catId ? tagCategoryNameById.get(catId) : undefined
+                            const color = getTagChipClasses(categoryName)
                             return (
                               <span key={tid} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ring-1 ring-inset ${color}`}>
                                 {t?.name || tid}
@@ -316,9 +395,11 @@ export default function FoodsPage() {
                             <CommandInput placeholder="Tìm tag theo tên..." value={tagSearch} onValueChange={setTagSearch} />
                             <div className="max-h-[320px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
                               <CommandList>
-                                <CommandEmpty>Không tìm thấy tag phù hợp.</CommandEmpty>
-                                {mockCategories.map(cat => {
-                                  const catTags = mockTags.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                                <CommandEmpty>
+                                  {tagsLoading ? "Đang tải danh sách tag..." : tagsError ? "Không thể tải danh sách tag." : "Không tìm thấy tag phù hợp."}
+                                </CommandEmpty>
+                                {tagCategories.map(cat => {
+                                  const catTags = tagOptions.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
                                   if (catTags.length === 0) return null
                                   return (
                                     <CommandGroup key={cat.id} heading={cat.name}>
@@ -338,6 +419,13 @@ export default function FoodsPage() {
                                 })}
                               </CommandList>
                             </div>
+                            {tagsError && (
+                              <div className="p-2 border-t flex justify-center">
+                                <Button type="button" variant="ghost" size="sm" onClick={refreshTags}>
+                                  Thử tải lại
+                                </Button>
+                              </div>
+                            )}
                           </Command>
                         </PopoverContent>
                       </Popover>
@@ -534,21 +622,33 @@ export default function FoodsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={()=>setConfirmDish(null)}>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={()=>{
-              if(confirmDish){
-                // Optimistic toggle
-                const next = !confirmDish.isAvailable
-                // Currently dishes come from mockDishes constant; in real app, update local state/source
-                // Here we just toast and clear selection
-                toast({ title: (
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    <span className="font-medium">{next ? 'Đã mở bán lại món ăn' : 'Đã tạm ngưng bán món ăn'}</span>
-                  </div>
-                )})
-                setConfirmDish(null)
-              }
-            }}>Xác nhận</AlertDialogAction>
+            <AlertDialogAction
+              disabled={!confirmDish || blockingId === confirmDish?.id}
+              onClick={async ()=>{
+                if(confirmDish){
+                  const next = !confirmDish.isAvailable
+                  const type = next ? 1 : 0
+                  setBlockingId(confirmDish.id)
+                  try {
+                    await setDishBlocking(normalizeId(confirmDish.id), type)
+                    setDishes((prev) => prev.map((dish) => dish.id === confirmDish.id ? { ...dish, isAvailable: next } : dish))
+                    toast({ title: (
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <span className="font-medium">{next ? 'Đã mở bán lại món ăn' : 'Đã tạm ngưng bán món ăn'}</span>
+                      </div>
+                    )})
+                    setConfirmDish(null)
+                  } catch (e) {
+                    toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })
+                  } finally {
+                    setBlockingId(null)
+                  }
+                }
+              }}
+            >
+              Xác nhận
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -591,8 +691,14 @@ export default function FoodsPage() {
                 </FormItem>
               )} />
               <FormField control={editForm.control} name="restaurantId" rules={{ required:'Vui lòng chọn quán ăn' }} render={({field})=>{
-                const filtered = mockRestaurants.filter(r=> r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).slice(0, restaurantLimit)
-                const selectedName = mockRestaurants.find(r=> r.id === field.value)?.name
+                const filtered = restaurantOptions.filter(r=> r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).slice(0, restaurantLimit)
+                const totalMatches = restaurantOptions.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length
+                const selectedName = restaurantOptions.find(r=> r.id === field.value)?.name
+                const emptyMessage = restaurantsLoading
+                  ? "Đang tải danh sách quán..."
+                  : restaurantsError
+                  ? "Không thể tải danh sách quán."
+                  : "Không tìm thấy quán phù hợp."
                 return (
                   <FormItem>
                     <FormLabel>Quán ăn</FormLabel>
@@ -608,7 +714,7 @@ export default function FoodsPage() {
                             <CommandInput placeholder="Tìm quán theo tên..." value={restaurantSearch} onValueChange={setRestaurantSearch} />
                             <div className="max-h-[300px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
                               <CommandList>
-                                <CommandEmpty>Không tìm thấy quán phù hợp.</CommandEmpty>
+                                <CommandEmpty>{emptyMessage}</CommandEmpty>
                                 <CommandGroup heading="Quán ăn">
                                   {filtered.map(r=> (
                                     <CommandItem key={r.id} value={r.name} onSelect={()=>{ field.onChange(r.id); setRestaurantPopoverOpen(false) }}>
@@ -618,10 +724,17 @@ export default function FoodsPage() {
                                 </CommandGroup>
                               </CommandList>
                             </div>
-                            {mockRestaurants.filter(r => r.name.toLowerCase().includes(restaurantSearch.toLowerCase())).length > restaurantLimit && (
+                            {totalMatches > restaurantLimit && (
                               <div className="p-2 border-t flex justify-center">
                                 <Button type="button" variant="ghost" size="sm" onClick={() => setRestaurantLimit(l => l + 20)}>
                                   Xem thêm
+                                </Button>
+                              </div>
+                            )}
+                            {restaurantsError && (
+                              <div className="p-2 border-t flex justify-center">
+                                <Button type="button" variant="ghost" size="sm" onClick={refreshRestaurants}>
+                                  Thử tải lại
                                 </Button>
                               </div>
                             )}
@@ -652,15 +765,10 @@ export default function FoodsPage() {
                     {selectedTags.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {selectedTags.map(tid => {
-                          const t = mockTags.find(x => x.id === tid)
+                          const t = tagOptions.find(x => x.id === tid)
                           const catId = t?.categoryId
-                          const color = catId === 'cat_1'
-                            ? 'bg-blue-100 text-blue-700 ring-blue-200'
-                            : catId === 'cat_2'
-                            ? 'bg-green-100 text-green-700 ring-green-200'
-                            : catId === 'cat_3'
-                            ? 'bg-amber-100 text-amber-800 ring-amber-200'
-                            : 'bg-purple-100 text-purple-700 ring-purple-200'
+                          const categoryName = catId ? tagCategoryNameById.get(catId) : undefined
+                          const color = getTagChipClasses(categoryName)
                           return (
                             <span key={tid} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs ring-1 ring-inset ${color}`}>
                               {t?.name || tid}
@@ -681,9 +789,11 @@ export default function FoodsPage() {
                           <CommandInput placeholder="Tìm tag theo tên..." value={tagSearch} onValueChange={setTagSearch} />
                           <div className="max-h-[320px] overflow-y-auto" onWheel={(e)=>e.stopPropagation()}>
                             <CommandList>
-                              <CommandEmpty>Không tìm thấy tag phù hợp.</CommandEmpty>
-                              {mockCategories.map(cat => {
-                                const catTags = mockTags.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                              <CommandEmpty>
+                                {tagsLoading ? "Đang tải danh sách tag..." : tagsError ? "Không thể tải danh sách tag." : "Không tìm thấy tag phù hợp."}
+                              </CommandEmpty>
+                              {tagCategories.map(cat => {
+                                const catTags = tagOptions.filter(t => t.categoryId === cat.id && t.name.toLowerCase().includes(tagSearch.toLowerCase()))
                                 if (catTags.length === 0) return null
                                 return (
                                   <CommandGroup key={cat.id} heading={cat.name}>
@@ -699,10 +809,17 @@ export default function FoodsPage() {
                                       )
                                     })}
                                   </CommandGroup>
-                                )
-                              })}
+                                  )
+                                })}
                             </CommandList>
                           </div>
+                          {tagsError && (
+                            <div className="p-2 border-t flex justify-center">
+                              <Button type="button" variant="ghost" size="sm" onClick={refreshTags}>
+                                Thử tải lại
+                              </Button>
+                            </div>
+                          )}
                         </Command>
                       </PopoverContent>
                     </Popover>
