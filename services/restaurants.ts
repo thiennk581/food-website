@@ -38,3 +38,8 @@ export async function createRestaurant(input: CreateRestaurantInput): Promise<Re
   const data = await apiClient.post<any>("/restaurants", payload, { headers: getAuthHeaders() });
   return mapRestaurant(data);
 }
+
+export async function setRestaurantBlocking(id: number | string, type: 0 | 1): Promise<string> {
+  const headers = getAuthHeaders();
+  return apiClient.post<string>(`/restaurants/blocking/${id}/${type}`, undefined, { headers });
+}

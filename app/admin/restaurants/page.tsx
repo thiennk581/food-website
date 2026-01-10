@@ -1,4 +1,3 @@
-// TODO: tạm ngưng bán
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
@@ -15,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { Restaurant } from "@/types"
 import { useRestaurants } from "@/hooks/restaurants/use-restaurants"
 import { useCreateRestaurant } from "@/hooks/restaurants/use-create-restaurant"
+import { setRestaurantBlocking } from "@/services/restaurants"
 import { useToast } from "@/hooks/use-toast"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -27,6 +27,7 @@ export default function RestaurantsPage() {
   const { mutate: createRestaurant, loading: creating } = useCreateRestaurant()
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<Restaurant | null>(null)
+  const [blockingId, setBlockingId] = useState<string | null>(null)
 
   type CreateRestaurantInput = {
     name: string
@@ -95,7 +96,16 @@ export default function RestaurantsPage() {
 
   const { data, loading, error, refresh } = useRestaurants()
 
-  const restaurants = data || []
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+
+  useEffect(() => {
+    setRestaurants(data || [])
+  }, [data])
+
+  function normalizeId(value: string) {
+    const trimmed = value.trim()
+    return /^-?\d+$/.test(trimmed) ? Number(trimmed) : trimmed
+  }
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -294,16 +304,27 @@ export default function RestaurantsPage() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Hủy</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => {
-                                    // TODO: integrate API toggle active status
-                                    toast({
-                                      title: (
-                                        <div className="flex items-center gap-3">
-                                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                          <span className="font-medium">{r.isActive ? "Đã tạm ngưng bán" : "Đã mở bán lại"} quán "{r.name}"</span>
-                                        </div>
-                                      )
-                                    })
+                                  disabled={blockingId === r.id}
+                                  onClick={async () => {
+                                    const next = !r.isActive
+                                    const type = next ? 1 : 0
+                                    setBlockingId(r.id)
+                                    try {
+                                      await setRestaurantBlocking(normalizeId(r.id), type)
+                                      setRestaurants((prev) => prev.map((item) => item.id === r.id ? { ...item, isActive: next } : item))
+                                      toast({
+                                        title: (
+                                          <div className="flex items-center gap-3">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            <span className="font-medium">{next ? "Đã mở bán lại" : "Đã tạm ngưng bán"} quán "{r.name}"</span>
+                                          </div>
+                                        )
+                                      })
+                                    } catch (e) {
+                                      toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })
+                                    } finally {
+                                      setBlockingId(null)
+                                    }
                                   }}
                                 >
                                   Xác nhận
