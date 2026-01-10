@@ -106,3 +106,8 @@ export async function fetchAllUsers(): Promise<User[]> {
   const data = await apiClient.get<AdminUserResponse[]>("/users/getAll", { headers })
   return data.map(mapAdminUser)
 }
+
+export async function setUserBlocking(id: number | string, type: 0 | 1): Promise<string> {
+  const headers = getStoredAuthHeaders()
+  return apiClient.post<string>(`/users/blocking/${id}/${type}`, undefined, { headers })
+}

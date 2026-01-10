@@ -11,6 +11,7 @@ import { Search, MoreVertical, CheckCircle2 } from "lucide-react"
 import type { User } from "@/types"
 import { useToast } from "@/hooks/use-toast"
 import { useAdminUsers } from "@/hooks/users/use-admin-users"
+import { setUserBlocking } from "@/services/users"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 // Đã bỏ bộ lọc vai trò/trạng thái theo yêu cầu
 // Bỏ avatar theo yêu cầu
@@ -26,6 +27,12 @@ export default function UsersPage() {
   const { data: users, loading, error, setData: setUsers } = useAdminUsers()
   const [confirmUser, setConfirmUser] = useState<User | null>(null)
   const [confirmRoleUser, setConfirmRoleUser] = useState<User | null>(null)
+  const [blockingId, setBlockingId] = useState<string | null>(null)
+
+  function normalizeId(value: string) {
+    const trimmed = value.trim()
+    return /^-?\d+$/.test(trimmed) ? Number(trimmed) : trimmed
+  }
 
   const filteredUsers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -87,18 +94,26 @@ export default function UsersPage() {
   }, [users])
 
   // lock/unlock handling with toast
-  const handleToggleActive = (u: User) => {
+  const handleToggleActive = async (u: User) => {
     const next = !u.isActive
-    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
-    toast({
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">{next ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'} {u.name}.</span>
-        </div>
-      )
-    })
-    // TODO: call API, rollback on error
+    const type = next ? 1 : 0
+    setBlockingId(u.id)
+    try {
+      await setUserBlocking(normalizeId(u.id), type)
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
+      toast({
+        title: (
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+            <span className="font-medium">{next ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'} {u.name}.</span>
+          </div>
+        )
+      })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })
+    } finally {
+      setBlockingId(null)
+    }
   }
 
   const handleToggleRole = (u: User) => {
@@ -290,7 +305,12 @@ export default function UsersPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={()=>setConfirmUser(null)}>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={()=>{ if(confirmUser){ handleToggleActive(confirmUser); setConfirmUser(null) } }}>Xác nhận</AlertDialogAction>
+            <AlertDialogAction
+              disabled={!confirmUser || blockingId === confirmUser?.id}
+              onClick={async ()=>{ if(confirmUser){ await handleToggleActive(confirmUser); setConfirmUser(null) } }}
+            >
+              Xác nhận
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
