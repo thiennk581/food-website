@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_BASE_URL } from "@/lib/api-client";
 
 // /home/thiennk/Documents/food-ordering-app/hooks/authService/use-login.ts
 
@@ -13,11 +14,7 @@ type LoginResponse = {
   email?: string;
 };
 
-// Base URL from env (fallback to localhost:8080)
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-const LOGIN_PATH = "/api/v1/users/login"; // chỉnh nếu backend dùng path khác
-const LOGIN_URL = `${BASE_URL}${LOGIN_PATH}`;
+const LOGIN_URL = `${API_BASE_URL}/users/login`;
 
 /**
  * Hook để gọi API login (Spring Boot) và lưu token vào localStorage.

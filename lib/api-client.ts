@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_SPRING_URL;
 
 async function handle<T>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
@@ -10,7 +10,7 @@ async function handle<T>(res: Response): Promise<T> {
     return (await res.json()) as T;
   }
   const text = await res.text().catch(() => "");
-  return (text as unknown) as T;
+  return text as unknown as T;
 }
 
 export const apiClient = {

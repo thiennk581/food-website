@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { API_BASE_URL } from "@/lib/api-client";
 
 type RegisterCredentials = {
   fullName?: string;
@@ -17,9 +18,7 @@ type RegisterResponse = {
     fullName?: string;
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-const REGISTER_PATH = "/api/v1/users/register";
-const REGISTER_URL = `${BASE_URL}${REGISTER_PATH}`;
+const REGISTER_URL = `${API_BASE_URL}/users/register`;
 
 
 export default function useRegister() {
