@@ -7,13 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/hooks/use-cart";
-import { authService } from "@/lib/auth";
+import { fetchUserProfile } from "@/services/users";
 import { mockRestaurants } from "@/lib/mock-data";
-import type { Order } from "@/types";
-import { MapPin, CreditCard, Wallet } from "lucide-react";
+import type { Order, Promotion } from "@/types";
+import { MapPin, CreditCard, Wallet, Ticket, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { validatePromotion } from "@/services/promotions";
+import { createOrder, createVnpayPayment } from "@/services/orders";
 
 export const dynamic = "force-dynamic";
 
@@ -23,70 +26,102 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [note, setNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [promotionCode, setPromotionCode] = useState("");
+  const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null);
+  const [isApplyingCode, setIsApplyingCode] = useState(false);
 
   useEffect(() => {
-    setUser(authService.getCurrentUser());
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (token) {
+      fetchUserProfile({ token }).then(data => setUser(data)).catch(() => setUser(null));
+    }
   }, []);
 
-  const restaurant = mockRestaurants.find((r) => r.id === cart.restaurantId);
+  const restaurant = mockRestaurants.find((r) => r.id === cart.items[0]?.dish?.restaurantId);
   const deliveryFee = 15000;
-  const totalAmount = getTotalAmount() + deliveryFee;
+  const subTotal = getTotalAmount();
+  let discountAmount = 0;
+
+  if (appliedPromotion) {
+    if (appliedPromotion.type === "PERCENTAGE") {
+      discountAmount = subTotal * (appliedPromotion.value / 100);
+      if (appliedPromotion.maxDiscountAmount && discountAmount > appliedPromotion.maxDiscountAmount) {
+        discountAmount = appliedPromotion.maxDiscountAmount;
+      }
+    } else {
+      discountAmount = appliedPromotion.value;
+    }
+    if (discountAmount > subTotal) discountAmount = subTotal;
+  }
+
+  const totalAmount = subTotal + deliveryFee - discountAmount;
 
   if (cart.items.length === 0) {
     router.push("/user/cart");
     return null;
   }
 
+  const handleApplyPromotion = async () => {
+    if (!promotionCode.trim()) return;
+    setIsApplyingCode(true);
+    try {
+      const promotion = await validatePromotion(promotionCode, subTotal);
+      setAppliedPromotion(promotion);
+      toast({ title: "Đã áp dụng mã khuyến mãi" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Lỗi mã khuyến mãi", description: e.message });
+      setAppliedPromotion(null);
+    } finally {
+      setIsApplyingCode(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     setIsProcessing(true);
 
-    // Simulate order processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      // Find default address id from user
+      const defaultAddress = user?.address?.find((a: any) => a.isDefault);
+      const addressId = defaultAddress?.id ? Number(defaultAddress.id) : undefined;
+      
+      if (!addressId) {
+        toast({ variant: "destructive", title: "Vui lòng chọn địa chỉ giao hàng" });
+        setIsProcessing(false);
+        return;
+      }
 
-    const newOrder: Order = {
-      id: `order_${Date.now()}`,
-      userId: user?.id || "",
-      restaurantId: cart.restaurantId,
-      items: cart.items.map((item) => ({
-        dishId: item.dish.id,
-        dishName: item.dish.name,
-        dishImage: item.dish.image,
-        quantity: item.quantity,
-        price: item.dish.price,
-        note: item.note,
-      })),
-      status: "pending",
-      totalAmount,
-      deliveryAddress: {
-        id: "addr_1",
-        userId: user?.id || "",
-        label: "Home",
-        street: "789 Nguyễn Trãi",
-        city: "TP.HCM",
-        district: "Q.5",
-        isDefault: true,
-      },
-      note,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      const orderData = {
+        addressId,
+        promotionCode: appliedPromotion?.code,
+        paymentMethod
+      };
 
-    // Save order to localStorage
-    const orders = JSON.parse(localStorage.getItem("orders") || "[]");
-    orders.push(newOrder);
-    localStorage.setItem("orders", JSON.stringify(orders));
+      const newOrder = await createOrder(orderData);
 
-    clearCart();
-    setIsProcessing(false);
+      if (paymentMethod === "VNPAY") {
+        const paymentRes = await createVnpayPayment(newOrder.id);
+        if (paymentRes.paymentUrl) {
+          clearCart();
+          window.location.href = paymentRes.paymentUrl;
+          return;
+        }
+      }
 
-    toast({
-      title: "Đặt hàng thành công!",
-      description: "Đơn hàng của bạn đang được xử lý",
-    });
+      clearCart();
+      setIsProcessing(false);
 
-    router.push("/user/orders");
+      toast({
+        title: "Đặt hàng thành công!",
+        description: "Đơn hàng của bạn đang được xử lý",
+      });
+
+      router.push("/user/orders");
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Đặt hàng thất bại", description: e.message });
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -110,7 +145,7 @@ export default function CheckoutPage() {
                   <div>
                     <h3 className="font-semibold">Nhà riêng</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      789 Nguyễn Trãi, Q.5, TP.HCM
+                      {user?.address?.find((a: any) => a.isDefault)?.address || "Chưa có địa chỉ"}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {user?.phone}
@@ -175,9 +210,9 @@ export default function CheckoutPage() {
                 onValueChange={setPaymentMethod}
               >
                 <div className="flex items-center space-x-3 rounded-lg border border-border p-4">
-                  <RadioGroupItem value="cash" id="cash" />
+                  <RadioGroupItem value="CASH" id="CASH" />
                   <Label
-                    htmlFor="cash"
+                    htmlFor="CASH"
                     className="flex flex-1 cursor-pointer items-center gap-3"
                   >
                     <Wallet className="h-5 w-5 text-muted-foreground" />
@@ -190,16 +225,16 @@ export default function CheckoutPage() {
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3 rounded-lg border border-border p-4">
-                  <RadioGroupItem value="card" id="card" />
+                  <RadioGroupItem value="VNPAY" id="VNPAY" />
                   <Label
-                    htmlFor="card"
+                    htmlFor="VNPAY"
                     className="flex flex-1 cursor-pointer items-center gap-3"
                   >
                     <CreditCard className="h-5 w-5 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Thẻ tín dụng/ghi nợ</p>
+                      <p className="font-medium">VNPAY</p>
                       <p className="text-sm text-muted-foreground">
-                        Thanh toán trực tuyến
+                        Thanh toán trực tuyến an toàn với VNPAY
                       </p>
                     </div>
                   </Label>
@@ -225,7 +260,33 @@ export default function CheckoutPage() {
         </div>
 
         {/* Order Summary */}
-        <div>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Ticket className="h-5 w-5" />
+                Mã khuyến mãi
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nhập mã khuyến mãi"
+                  value={promotionCode}
+                  onChange={(e) => setPromotionCode(e.target.value)}
+                />
+                <Button variant="secondary" onClick={handleApplyPromotion} disabled={isApplyingCode}>
+                  {isApplyingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Áp dụng"}
+                </Button>
+              </div>
+              {appliedPromotion && (
+                <div className="mt-3 p-3 bg-green-50 text-green-700 border border-green-200 rounded-md text-sm">
+                  Đã áp dụng mã <b>{appliedPromotion.code}</b>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="sticky top-20">
             <CardHeader>
               <CardTitle>Tổng đơn hàng</CardTitle>
@@ -235,7 +296,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tạm tính</span>
                   <span className="font-medium">
-                    {getTotalAmount().toLocaleString("vi-VN")}đ
+                    {subTotal.toLocaleString("vi-VN")}đ
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -244,6 +305,14 @@ export default function CheckoutPage() {
                     {deliveryFee.toLocaleString("vi-VN")}đ
                   </span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Khuyến mãi</span>
+                    <span className="font-medium">
+                      -{discountAmount.toLocaleString("vi-VN")}đ
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="border-t border-border pt-4">
                 <div className="flex justify-between">

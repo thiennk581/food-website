@@ -74,6 +74,9 @@ export interface AdminDish {
   image: string
   isAvailable: boolean
   restaurantName: string
+  restaurantId: string
+  description: string
+  tags: string[]
 }
 
 // Cart Types
@@ -150,3 +153,21 @@ export interface TopSelling {
   dishId: string
   quantitySold: number
 }
+
+// Promotion Types
+export interface Promotion {
+  id: string
+  code: string
+  description: string
+  type: "PERCENTAGE" | "FIXED_AMOUNT"
+  value: number
+  maxDiscountAmount: number
+  minOrderValue: number
+  startDate: string
+  endDate: string
+  isActive: boolean
+  usageLimit: number
+  currentUsage: number
+  createdAt: string
+}
+

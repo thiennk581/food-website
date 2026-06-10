@@ -17,6 +17,6 @@ export async function fetchDishReviews(dishId: string | number) {
   const headers = getAuthHeaders()
   const data = await apiClient.get<DishReviewResponse[]>(`/reviews/dish/${dishId}`, { headers })
   return data.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
     )
 }

@@ -46,12 +46,7 @@ export default function RestaurantsPage() {
       setRestaurants((prev) => [created, ...prev.filter((item) => item.id !== created.id)])
       setPage(1)
       toast({
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Quán ăn đã được thêm thành công!</span>
-          </div>
-        )
+        title: "Quán ăn đã được thêm thành công!",
       })
       setOpen(false)
       form.reset()
@@ -83,12 +78,7 @@ export default function RestaurantsPage() {
       const updated = await updateRestaurant(normalizeId(editing.id), values)
       setRestaurants((prev) => prev.map((item) => item.id === editing.id ? updated : item))
       toast({
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã cập nhật thành công!</span>
-          </div>
-        )
+        title: "Đã cập nhật thành công!",
       })
       setEditOpen(false)
       setEditing(null)
@@ -316,12 +306,7 @@ export default function RestaurantsPage() {
                                       await setRestaurantBlocking(normalizeId(r.id), type)
                                       setRestaurants((prev) => prev.map((item) => item.id === r.id ? { ...item, isActive: next } : item))
                                       toast({
-                                        title: (
-                                          <div className="flex items-center gap-3">
-                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                            <span className="font-medium">{next ? "Đã mở bán lại" : "Đã tạm ngưng bán"} quán "{r.name}"</span>
-                                          </div>
-                                        )
+                                        title: next ? `Đã mở bán lại quán "${r.name}"` : `Đã tạm ngưng bán quán "${r.name}"`,
                                       })
                                     } catch (e) {
                                       toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })

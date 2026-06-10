@@ -70,13 +70,8 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
     }
     // TODO: Add actual password change logic here
     toast({
-      variant: "success",
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">Đổi mật khẩu thành thành công!</span>
-        </div>
-      ),
+      variant: "default",
+      title: "Đổi mật khẩu thành thành công!",
     })
     onOpenChange(false)
   }

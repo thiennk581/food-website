@@ -102,12 +102,7 @@ export default function UsersPage() {
       await setUserBlocking(normalizeId(u.id), type)
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isActive: next } : x))
       toast({
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">{next ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'} {u.name}.</span>
-          </div>
-        )
+        title: next ? `Đã mở khóa tài khoản ${u.name}.` : `Đã khóa tài khoản ${u.name}.`
       })
     } catch (e) {
       toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })
@@ -120,12 +115,7 @@ export default function UsersPage() {
     const nextRole: User["role"] = u.role === 'admin' ? 'user' : 'admin'
     setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: nextRole } : x))
     toast({
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">{nextRole === 'admin' ? 'Đã cấp quyền Admin' : 'Đã chuyển thành User'}</span>
-        </div>
-      ),
+      title: nextRole === 'admin' ? 'Đã cấp quyền Admin' : 'Đã chuyển thành User',
       duration: 2000
     })
   }

@@ -82,3 +82,19 @@ export async function submitOrderItemReview(
   const headers = getAuthHeaders()
   await apiClient.post(`/reviews/dish/${orderItemId}`, { rating, comment }, { headers })
 }
+
+export async function createOrder(data: { addressId: number; promotionCode?: string; paymentMethod?: string }): Promise<any> {
+  const headers = getAuthHeaders()
+  return await apiClient.post(`/orders`, data, { headers })
+}
+
+export async function createVnpayPayment(orderId: number): Promise<{ paymentUrl: string }> {
+  const headers = getAuthHeaders()
+  return await apiClient.post(`/payment/vnpay/create-payment?orderId=${orderId}`, {}, { headers })
+}
+
+export async function verifyVnpayPayment(queryString: string): Promise<string> {
+  const headers = getAuthHeaders()
+  return await apiClient.get<string>(`/payment/vnpay/payment-return${queryString}`, { headers })
+}
+

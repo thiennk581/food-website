@@ -72,7 +72,7 @@ function mapRole(role?: RoleResponse) {
   const upper = role?.roleName?.toUpperCase() === "ADMIN" ? "ADMIN" : "USER"
   return {
     roleName: upper as User["roleName"],
-    role: upper === "ADMIN" ? "admin" : "user",
+    role: (upper === "ADMIN" ? "admin" : "user") as "admin" | "user",
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  User,
+  User as UserIcon,
   MapPin,
   Heart,
   Edit,
@@ -175,7 +175,7 @@ export default function ProfilePage() {
         const nextEmail = data.email ?? ""
         const nextBirthdate = data.birthday ?? ""
 
-        setUser((currentUser) => ({
+        setUser((currentUser: User) => ({
           ...currentUser,
           name: nextName || currentUser.name,
           phone: nextPhone || currentUser.phone,
@@ -222,9 +222,9 @@ export default function ProfilePage() {
         const addresses = await fetchUserAddresses(token)
         if (!isMounted) return
 
-        setUser((currentUser) => ({
+        setUser((currentUser: User) => ({
           ...currentUser,
-          address: addresses.map((addr) => mapApiAddressToClient(addr, currentUser.id)),
+          address: addresses.map((addr: any) => mapApiAddressToClient(addr, currentUser.id)),
         }))
       } catch (error) {
         if (!isMounted) return
@@ -297,7 +297,7 @@ export default function ProfilePage() {
         }, {})
         setInitialBiasScores(baselineMap)
         setPendingBiasChanges({})
-        setUser((currentUser) => ({
+        setUser((currentUser: User) => ({
           ...currentUser,
           bias: normalizedBiases,
         }))
@@ -324,7 +324,7 @@ export default function ProfilePage() {
   }, [toast])
 
   const handleScoreChange = (tagId: string, newScore: number) => {
-    setUser((currentUser) => {
+    setUser((currentUser: User) => {
       const newBias = [...currentUser.bias]
       const biasIndex = newBias.findIndex((b) => b.tagId === tagId)
       if (biasIndex > -1) {
@@ -382,18 +382,18 @@ export default function ProfilePage() {
         ? await updateUserAddress(token, addressData.id, payload)
         : await createUserAddress(token, payload)
 
-      setUser((currentUser) => {
+      setUser((currentUser: User) => {
         const normalizedAddress = mapApiAddressToClient(response, currentUser.id, addressData.id)
         const isEdit = Boolean(addressData.id)
 
         let newAddresses = isEdit
-          ? currentUser.address.map((addr) =>
+          ? currentUser.address.map((addr: any) =>
               addr.id === normalizedAddress.id ? normalizedAddress : addr,
             )
           : [...currentUser.address, normalizedAddress]
 
         if (normalizedAddress.isDefault) {
-          newAddresses = newAddresses.map((addr) =>
+          newAddresses = newAddresses.map((addr: any) =>
             addr.id === normalizedAddress.id ? normalizedAddress : { ...addr, isDefault: false },
           )
         }
@@ -402,13 +402,8 @@ export default function ProfilePage() {
       })
 
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã {addressData.id ? "cập nhật" : "thêm"} địa chỉ thành công!</span>
-          </div>
-        ),
+        variant: "default",
+        title: addressData.id ? "Đã cập nhật địa chỉ thành công!" : "Đã thêm địa chỉ thành công!",
       })
 
       setAddressDialogOpen(false)
@@ -437,18 +432,13 @@ export default function ProfilePage() {
 
     try {
       await deleteUserAddress(token, addressId)
-      setUser((currentUser) => {
-        const newAddresses = currentUser.address.filter((addr) => addr.id !== addressId)
+      setUser((currentUser: User) => {
+        const newAddresses = currentUser.address.filter((addr: any) => addr.id !== addressId)
         return { ...currentUser, address: newAddresses }
       })
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã xóa địa chỉ thành công!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đã xóa địa chỉ thành công!",
       })
     } catch (error) {
       const message =
@@ -528,7 +518,7 @@ export default function ProfilePage() {
         response && "birthday" in response ? response.birthday : payload.birthday
       const nextBirthdateDate = nextBirthdateString ? new Date(nextBirthdateString) : undefined
 
-      setUser((currentUser) => ({
+      setUser((currentUser: User) => ({
         ...currentUser,
         name: nextName,
         phone: nextPhone,
@@ -544,13 +534,8 @@ export default function ProfilePage() {
       setGender(nextGender)
 
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã cập nhật thông tin thành công!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đã cập nhật thông tin thành công!",
       })
     } catch (error) {
       const message =
@@ -606,8 +591,8 @@ export default function ProfilePage() {
       })
       setPendingBiasChanges({})
 
-      setUser((currentUser) => {
-        const updatedBiases = currentUser.bias.map((bias) => {
+      setUser((currentUser: User) => {
+        const updatedBiases = currentUser.bias.map((bias: any) => {
           const response = apiResponses[bias.tagId]
           if (response?.id !== undefined && response?.id !== null) {
             return { ...bias, id: String(response.id) }
@@ -618,13 +603,8 @@ export default function ProfilePage() {
       })
 
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã lưu tùy chọn thành công!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đã lưu tùy chọn thành công!",
       })
     } catch (error) {
       const message =
@@ -655,7 +635,7 @@ export default function ProfilePage() {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile" className="py-2.5 text-sm md:text-base">
-            <User className="mr-2 h-4 w-4" />
+            <UserIcon className="mr-2 h-4 w-4" />
             Thông tin tài khoản
           </TabsTrigger>
           <TabsTrigger value="addresses" className="py-2.5 text-sm md:text-base">

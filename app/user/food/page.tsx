@@ -554,14 +554,7 @@ export default function FoodPage() {
     scheduleAddSync(dish.id)
     void trackUserAction({ dishId: dish.id, action: "ADD_TO_CART" }).catch(() => {})
     toast({
-      title: (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <span className="font-medium">
-            "{dish.name}" đã được thêm vào giỏ hàng!
-          </span>
-        </div>
-      ),
+      title: `"${dish.name}" đã được thêm vào giỏ hàng!`,
     })
   }
 

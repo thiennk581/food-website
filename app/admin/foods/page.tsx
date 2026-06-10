@@ -32,9 +32,9 @@ export default function FoodsPage() {
   const [sortBy, setSortBy] = useState<"price_asc"|"price_desc"|"rating_asc"|"rating_desc">("price_asc")
   const [open, setOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [editing, setEditing] = useState<Dish | null>(null)
+  const [editing, setEditing] = useState<AdminDish | null>(null)
   const { toast } = useToast()
-  const [confirmDish, setConfirmDish] = useState<Dish | null>(null)
+  const [confirmDish, setConfirmDish] = useState<AdminDish | null>(null)
   const [blockingId, setBlockingId] = useState<string | null>(null)
   const [restaurantSearch, setRestaurantSearch] = useState("")
   const [restaurantLimit, setRestaurantLimit] = useState(10)
@@ -152,12 +152,7 @@ export default function FoodsPage() {
         : created
       setDishes((prev) => [nextDish, ...prev])
       toast({
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Món ăn đã được thêm thành công!</span>
-          </div>
-        )
+        title: "Món ăn đã được thêm thành công!",
       })
       setOpen(false)
       form.reset()
@@ -632,12 +627,7 @@ export default function FoodsPage() {
                   try {
                     await setDishBlocking(normalizeId(confirmDish.id), type)
                     setDishes((prev) => prev.map((dish) => dish.id === confirmDish.id ? { ...dish, isAvailable: next } : dish))
-                    toast({ title: (
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        <span className="font-medium">{next ? 'Đã mở bán lại món ăn' : 'Đã tạm ngưng bán món ăn'}</span>
-                      </div>
-                    )})
+                    toast({ title: next ? 'Đã mở bán lại món ăn' : 'Đã tạm ngưng bán món ăn' })
                     setConfirmDish(null)
                   } catch (e) {
                     toast({ variant: "destructive", title: "Cập nhật thất bại", description: "Vui lòng thử lại sau." })
@@ -669,12 +659,7 @@ export default function FoodsPage() {
                   id: editing?.id,
                 }
                 console.log('Edit dish', payload)
-                toast({ title: (
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    <span className="font-medium">Đã cập nhật món ăn!</span>
-                  </div>
-                )})
+                toast({ title: "Đã cập nhật món ăn!" })
                 setEditOpen(false)
                 setEditing(null)
               } catch(e) {

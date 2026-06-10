@@ -29,6 +29,7 @@ import {
   Bell,
   Search,
   Home,
+  Ticket,
 } from "lucide-react";
 import { User } from "@/types";
 
@@ -102,6 +103,7 @@ export default function AdminLayout({
     { href: "/admin/users", label: "Người dùng", icon: Users },
     { href: "/admin/foods", label: "Món ăn", icon: UtensilsCrossed },
     { href: "/admin/restaurants", label: "Quán ăn", icon: Home },
+    { href: "/admin/promotions", label: "Khuyến mãi", icon: Ticket },
   ];
 
   const bottomNavItems = [

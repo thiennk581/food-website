@@ -123,9 +123,14 @@ export default function CartPage() {
       try {
         const data = await fetchUserAddresses(token)
         if (!isMounted) return
-        setAddresses(data)
-        const defaultAddr = data.find((addr) => addr.isDefault)
-        setSelectedAddressId(defaultAddr?.id ?? data[0]?.id)
+        const mappedAddresses: Address[] = data.map(addr => ({
+          ...addr,
+          id: String(addr.id),
+          userId: "", // Thêm userId trống để phù hợp với type Address
+        }));
+        setAddresses(mappedAddresses)
+        const defaultAddr = mappedAddresses.find((addr) => addr.isDefault)
+        setSelectedAddressId(defaultAddr?.id ?? mappedAddresses[0]?.id)
       } catch (error) {
         if (!isMounted) return
         setAddressError("Không thể tải địa chỉ giao hàng.")
@@ -213,13 +218,8 @@ export default function CartPage() {
       removeFromCart(dishId)
       void trackUserAction({ dishId, action: "REMOVE_FROM_CART" }).catch(() => {})
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã xóa món khỏi giỏ hàng!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đã xóa món khỏi giỏ hàng!",
       })
     } catch (error) {
       toast({
@@ -243,13 +243,8 @@ export default function CartPage() {
       })
       clearCart()
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đã xóa giỏ hàng!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đã xóa giỏ hàng!",
       })
     } catch (error) {
       toast({
@@ -280,13 +275,8 @@ export default function CartPage() {
       setCheckoutOpen(false)
 
       toast({
-        variant: "success",
-        title: (
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-            <span className="font-medium">Đặt hàng thành công!</span>
-          </div>
-        ),
+        variant: "default",
+        title: "Đặt hàng thành công!",
         description: "Cảm ơn bạn đã mua sắm. Chúng tôi sẽ xử lý đơn hàng của bạn ngay.",
       })
 
@@ -337,7 +327,7 @@ export default function CartPage() {
   }
 
   return (
-    <Dialog open={isCheckoutOpen} onOpenChange={setCheckoutOpen}>
+    <>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground flex items-baseline gap-3">
@@ -443,19 +433,13 @@ export default function CartPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
-                <DialogTrigger asChild>
-                  <Button
-                    className="w-full h-11 text-base"
-                    disabled={
-                      availableItems.length === 0 ||
-                      addressLoading ||
-                      !selectedAddress ||
-                      userLoading
-                    }
-                  >
-                    Đặt hàng
-                  </Button>
-                </DialogTrigger>
+                <Button
+                  className="w-full h-11 text-base"
+                  disabled={availableItems.length === 0}
+                  onClick={() => router.push("/user/checkout")}
+                >
+                  Thanh toán
+                </Button>
                 <Button
                   variant="outline"
                   className="w-full h-11 text-base bg-transparent"
@@ -467,122 +451,7 @@ export default function CartPage() {
             </Card>
           </div>
         </div>
-
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Xác nhận đơn hàng</DialogTitle>
-            <DialogDescription>
-              Vui lòng kiểm tra lại thông tin trước khi xác nhận đặt hàng.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="space-y-3">
-              <h4 className="text-lg font-semibold">Thông tin giao hàng</h4>
-              <div className="rounded-lg border p-4 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Họ tên:</span>
-                  <span className="font-medium text-right">
-                    {userLoading ? "Đang tải..." : userInfo?.name || "Chưa có"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email:</span>
-                  <span className="font-medium text-right">
-                    {userLoading ? "Đang tải..." : userInfo?.email || "Chưa có"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Số điện thoại:</span>
-                  <span className="font-medium text-right">
-                    {userLoading ? "Đang tải..." : userInfo?.phone || "Chưa có"}
-                  </span>
-                </div>
-                {userError && (
-                  <p className="text-xs text-destructive">{userError}</p>
-                )}
-                <Separator className="my-2" />
-                <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Địa chỉ giao hàng:</label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="w-full">
-                          <Select
-                            value={selectedAddressId}
-                            onValueChange={setSelectedAddressId}
-                            disabled={addressLoading || addresses.length === 0}
-                          >
-                            <SelectTrigger className="mt-1 h-auto w-full bg-white">
-                              <span className="text-sm text-left">
-                                {addressLoading
-                                  ? "Đang tải địa chỉ..."
-                                  : truncateAddress(selectedAddress?.address)}
-                              </span>
-                            </SelectTrigger>
-                            <SelectContent className="max-w-xs">
-                              {addresses.map((addr) => (
-                                <SelectItem
-                                  key={addr.id}
-                                  value={addr.id}
-                                  className="whitespace-normal text-sm"
-                                >
-                                  <span className="block max-w-[300px]">{addr.address}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-sm break-words">
-                        <p>{selectedAddress?.address}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {addressError && (
-                    <p className="mt-2 text-xs text-destructive">{addressError}</p>
-                  )}
-                  {!addressLoading && addresses.length === 0 && !addressError && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Bạn chưa có địa chỉ nào. Vui lòng thêm địa chỉ trong trang hồ sơ.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <h4 className="text-lg font-semibold">Chi tiết đơn hàng</h4>
-              <div className="rounded-lg border p-4 space-y-4">
-                <div className="space-y-5">
-                  {availableItems.map(item => (
-                    <div key={item.dish.id} className="flex justify-between items-start text-sm">
-                      <div>
-                        <p className="font-medium flex-1 pr-4 line-clamp-2">{item.dish.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.dish.price.toLocaleString("vi-VN")}đ</p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="font-medium">{(item.dish.price * item.quantity).toLocaleString("vi-VN")}đ</span>
-                        <p className="text-muted-foreground text-xs mt-1">SL: {item.quantity}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Separator className="my-2" />
-                <div className="flex justify-between items-baseline">
-                  <span className="text-lg font-bold">Tổng cộng</span>
-                  <span className="text-xl font-bold text-primary">{(getTotalAmount()).toLocaleString("vi-VN")}đ</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={handleCancelOrder}>Hủy</Button>
-            </DialogClose>
-            <Button type="button" onClick={handleConfirmOrder}>Xác nhận đặt hàng</Button>
-          </DialogFooter>
-        </DialogContent>
       </div>
-    </Dialog>
+    </>
   )
 }
