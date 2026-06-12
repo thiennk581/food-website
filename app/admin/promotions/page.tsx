@@ -25,7 +25,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
       render={({ field }) => (
         <FormItem>
           <FormLabel>Mã khuyến mãi</FormLabel>
-          <FormControl><Input placeholder="VD: SUMMER10" {...field} /></FormControl>
+          <FormControl><Input placeholder="VD: SUMMER10" {...field} value={field.value ?? ""} /></FormControl>
           <FormMessage />
         </FormItem>
       )}
@@ -36,7 +36,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
       render={({ field }) => (
         <FormItem>
           <FormLabel>Mô tả (tuỳ chọn)</FormLabel>
-          <FormControl><Input placeholder="VD: Giảm giá mùa hè" {...field} /></FormControl>
+          <FormControl><Input placeholder="VD: Giảm giá mùa hè" {...field} value={field.value ?? ""} /></FormControl>
           <FormMessage />
         </FormItem>
       )}
@@ -68,7 +68,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Giá trị giảm</FormLabel>
-            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -81,7 +81,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Giảm tối đa (VNĐ)</FormLabel>
-            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
+            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -93,7 +93,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Đơn tối thiểu (VNĐ)</FormLabel>
-            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl>
+            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -107,7 +107,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Ngày bắt đầu</FormLabel>
-            <FormControl><Input type="datetime-local" {...field} /></FormControl>
+            <FormControl><Input type="datetime-local" {...field} value={field.value ?? ""} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -119,7 +119,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Ngày kết thúc</FormLabel>
-            <FormControl><Input type="datetime-local" {...field} /></FormControl>
+            <FormControl><Input type="datetime-local" {...field} value={field.value ?? ""} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -132,7 +132,7 @@ const PromotionFormFields = ({ formObj }: { formObj: any }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Giới hạn lượt dùng</FormLabel>
-            <FormControl><Input type="number" placeholder="Bỏ trống để không giới hạn" {...field} onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} /></FormControl>
+            <FormControl><Input type="number" placeholder="Bỏ trống để không giới hạn" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === "" ? undefined : parseInt(e.target.value))} /></FormControl>
             <FormMessage />
           </FormItem>
         )}
