@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Star, RefreshCw } from "lucide-react"
 import { Search, MoreVertical, Plus, CheckCircle2 } from "lucide-react"
 import type { Dish, AdminDish, Tag, Category } from "@/types"
-import { createDish, fetchAdminDishes, setDishBlocking } from "@/services/dishes"
+import { createDish, fetchAdminDishes, setDishBlocking, uploadImageUrl } from "@/services/dishes"
 import { useRestaurants } from "@/hooks/restaurants/use-restaurants"
 import { fetchAllTags } from "@/services/tags"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -137,13 +137,19 @@ export default function FoodsPage() {
 
   async function onSubmit(values: CreateDishInput) {
     try {
+      let finalImageUrl = values.imageUrl.trim()
+      if (finalImageUrl && !finalImageUrl.includes("res.cloudinary.com")) {
+        toast({ title: "Đang tải ảnh lên Cloudinary..." })
+        finalImageUrl = await uploadImageUrl(finalImageUrl, values.name.trim())
+      }
+
       const price = Number(values.price.replace(/\./g, "").trim() || 0)
       const payload = {
         name: values.name.trim(),
         price,
         restaurantId: normalizeId(values.restaurantId),
         tags: selectedTags.map((tagId) => normalizeId(tagId)),
-        imageUrl: values.imageUrl.trim(),
+        imageUrl: finalImageUrl,
       }
       const created = await createDish(payload)
       const fallbackRestaurantName = restaurantOptions.find((r) => r.id === values.restaurantId)?.name
@@ -556,7 +562,7 @@ export default function FoodsPage() {
               paged.map((d) => (
                 <TableRow className="hover:bg-muted/40" key={d.id}>
                   <TableCell>
-                    <img src={d.image} alt={d.name} className="h-12 w-16 object-cover rounded-md border" />
+                    <img src={d.image || "/placeholder.svg"} alt={d.name} className="h-12 w-16 object-cover rounded-md border" />
                   </TableCell>
                   <TableCell className="font-medium max-w-[260px]">
                     <span className="text-sm sm:text-base font-semibold leading-tight truncate" title={d.name}>{d.name}</span>

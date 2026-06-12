@@ -83,3 +83,14 @@ export async function setDishBlocking(id: number | string, type: 0 | 1): Promise
   const headers = getAuthHeaders()
   return apiClient.post<string>(`/dishes/blocking/${id}/${type}`, undefined, { headers })
 }
+
+export async function uploadImageUrl(url: string, imageName: string = "image"): Promise<string> {
+  const headers = getAuthHeaders()
+  const payload = {
+    imageName,
+    isThumbnail: false,
+    altText: "Dish image"
+  }
+  const result = await apiClient.post<any>(`/images/url?url=${encodeURIComponent(url)}`, payload, { headers })
+  return result.secure_url || url
+}

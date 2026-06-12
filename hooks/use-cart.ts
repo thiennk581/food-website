@@ -13,20 +13,17 @@ const CART_KEY = "food_ordering_simple_cart" // Đổi key để tránh xung đ�
 
 export function useCart() {
   const [cart, setCart] = useState<Cart>({ items: [] })
+  const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     const savedCartJson = localStorage.getItem(CART_KEY)
     if (savedCartJson) {
       const savedCart = JSON.parse(savedCartJson) as Cart
 
-      // Vẫn giữ logic đồng bộ quan trọng này
-      const syncedItems = savedCart.items.map(item => {
-        const currentDishData = mockDishes.find(d => d.id === item.dish.id)
-        return currentDishData ? { ...item, dish: currentDishData } : item
-      }).filter(item => mockDishes.some(d => d.id === item.dish.id));
-
-      setCart({ items: syncedItems })
+      // Xóa logic lọc theo mockDishes vì giờ đây chúng ta dùng dữ liệu thật từ API
+      setCart(savedCart)
     }
+    setIsLoaded(true)
   }, [])
 
   const saveCart = (newCart: Cart) => {
@@ -93,5 +90,6 @@ export function useCart() {
     getTotalAmount,
     getTotalItems,
     replaceCartItems,
+    isLoaded,
   }
 }
